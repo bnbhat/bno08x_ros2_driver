@@ -1,6 +1,5 @@
 bno08x_driver:
   ros__parameters:
-    debug_level: 0  # (0-2) 0: no debug logging, 2: verbose debug logging
 
     frame_id: "bno085"  # The frame_id to use for the sensor data
 
@@ -11,7 +10,7 @@ bno08x_driver:
     # (see documentation for more information)
     i2c:
       enabled: true
-      device: "/dev/i2c-18"
+      device: "/dev/i2c-7"
       address: "0x4A"
 
     uart:
@@ -19,10 +18,10 @@ bno08x_driver:
       device: "/dev/ttyACM0"  
 
     publish:
-      all: false
       magnetic_field: 
         enabled: true
         rate: 100   # max 100 Hz
       imu:
         enabled: true
-        rate: 100   # max 400 Hz
+        rate: 100   # max 400 Hz 
+                    # (anythihng above 100Hz depends on your hardware)
