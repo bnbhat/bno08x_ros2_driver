@@ -15,27 +15,30 @@ BNO08xROS::BNO08xROS()
 
     if (publish_imu_) {
         this->imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
+        RCLCPP_INFO(this->get_logger(), "IMU Publisher created");
+        RCLCPP_INFO(this->get_logger(), "IMU Rate: %d", imu_rate_);
     }
 
     if (publish_magnetic_field_) {
         mag_publisher_ = this->create_publisher<sensor_msgs::msg::MagneticField>(
                                                                         "/magnetic_field", 10);
+        RCLCPP_INFO(this->get_logger(), "Magnetic Field Publisher created");
+        RCLCPP_INFO(this->get_logger(), "Magnetic Field Rate: %d", magnetic_field_rate_);
     }
 
     // Poll the sensor at the rate of the fastest sensor
     this->imu_received_flag_ = 0;
-    if(this->imu_rate_ > this->magnetic_field_rate_){
+    if(this->imu_rate_ < this->magnetic_field_rate_){
         this->poll_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(this->magnetic_field_rate_), 
+            std::chrono::milliseconds(1000/this->magnetic_field_rate_), // Hz to ms
             std::bind(&BNO08xROS::poll_timer_callback, this)
         );
     } else {
         this->poll_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(this->imu_rate_), 
+            std::chrono::milliseconds(1000/this->imu_rate_), // Hz to ms
             std::bind(&BNO08xROS::poll_timer_callback, this)
         );
     }
-
     RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
@@ -59,6 +62,7 @@ void BNO08xROS::init_comms() {
         std::string address;
         this->get_parameter("i2c.device", device);
         this->get_parameter("i2c.address", address);
+        RCLCPP_INFO(this->get_logger(), "Communication Interface: I2C");
         try {
             comm_interface_ = new I2CInterface(device, std::stoi(address, nullptr, 16));
         } catch (const std::bad_alloc& e) {
@@ -67,6 +71,7 @@ void BNO08xROS::init_comms() {
             throw std::runtime_error("I2CInterface object allocation failed");
         }
     } else if (uart_enabled) {
+        RCLCPP_INFO(this->get_logger(), "Communication Interface: UART");
         std::string device;
         this->get_parameter("uart.device", device);
         try{
@@ -129,7 +134,7 @@ void BNO08xROS::init_sensor() {
 
     if (!bno08x_->begin()) {
         RCLCPP_ERROR(this->get_logger(), "Failed to initialize BNO08X sensor");
-        return;
+        throw std::runtime_error("BNO08x initialization failed");
     }
 
     if(!this->bno08x_->enable_report(SH2_MAGNETIC_FIELD_CALIBRATED, 

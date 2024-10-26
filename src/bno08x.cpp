@@ -64,14 +64,14 @@ bool BNO08x::init(int32_t sensor_id) {
   status = sh2_open(&HAL_, hal_callback, this);
   if (status != SH2_OK) {
     return false;
-    DEBUG_LOG("Failed to open SH2 interface");
+    std::cerr << "BNO08x - Failed to open SH2 interface" << std::endl;
   }
 
   // Check connection partially by getting the product id's
   memset(&prodIds, 0, sizeof(prodIds));
   status = sh2_getProdIds(&prodIds);
   if (status != SH2_OK) {
-    DEBUG_LOG("Failed to get product IDs");
+    std::cerr << "BNO08x - Failed to get product IDs" << std::endl;
     return false;
   }
 
@@ -90,6 +90,7 @@ bool BNO08x::init(int32_t sensor_id) {
   status = sh2_setSensorCallback(sensor_event_callback, this);
   if (status != SH2_OK) {
     return false;
+    std::cerr << "BNO08x - Failed to set sensor callback" << std::endl;
   }
 
   return true;
