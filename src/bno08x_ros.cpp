@@ -60,7 +60,7 @@ void BNO08xROS::init_comms() {
     if (i2c_enabled) {
         std::string device;
         std::string address;
-        this->get_parameter("i2c.device", device);
+        this->get_parameter("i2c.bus", device);
         this->get_parameter("i2c.address", address);
         RCLCPP_INFO(this->get_logger(), "Communication Interface: I2C");
         try {
@@ -102,7 +102,7 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.imu.rate", 100);
 
     this->declare_parameter<bool>("i2c.enabled", true);
-    this->declare_parameter<std::string>("i2c.device", "/dev/i2c-7");
+    this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
     this->declare_parameter<std::string>("i2c.address", "0x4A");
     this->declare_parameter<bool>("uart.enabled", false);
     this->declare_parameter<std::string>("uart.device", "/dev/ttyACM0");

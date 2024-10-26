@@ -10,7 +10,7 @@ bno08x_driver:
     # (see documentation for more information)
     i2c:
       enabled: true
-      device: "/dev/i2c-7"
+      bus: "/dev/i2c-7"
       address: "0x4A"
 
     uart:

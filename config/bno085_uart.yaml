@@ -10,7 +10,7 @@ bno08x_driver:
     # (see documentation for more information on how to change the interface)
     i2c:
       enabled: false
-      device: "/dev/i2c-18"
+      bus: "/dev/i2c-18"
       address: "0x4A"
 
     uart:
