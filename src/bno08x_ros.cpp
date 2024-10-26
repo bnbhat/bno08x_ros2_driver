@@ -60,7 +60,7 @@ void BNO08xROS::init_comms() {
         this->get_parameter("i2c.device", device);
         this->get_parameter("i2c.address", address);
         try {
-            comm_interface_ = new I2CInterface(device.c_str(), std::stoi(address, nullptr, 16));
+            comm_interface_ = new I2CInterface(device, std::stoi(address, nullptr, 16));
         } catch (const std::bad_alloc& e) {
             RCLCPP_ERROR(this->get_logger(), 
                     "Failed to allocate memory for I2CInterface object: %s", e.what());

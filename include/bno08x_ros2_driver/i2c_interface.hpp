@@ -16,23 +16,25 @@
  */
 class I2CInterface : public CommInterface {
 public:
-    I2CInterface(const char* i2c_bus_file, uint8_t i2c_addr)
-        : i2c_fd(-1), i2c_bus_file(i2c_bus_file), i2c_addr(i2c_addr) {
-            DEBUG_LOG("[BNO08x] I2C Interface Created");
+    I2CInterface(const std::string& i2c_bus_file, uint8_t i2c_addr)
+        : i2c_fd_(-1), i2c_bus_file_(i2c_bus_file), i2c_addr_(i2c_addr) {
+            std::cout<< "Bus: " << i2c_bus_file_ << std::endl;
+            std::cout << "Address: 0x" << std::hex << static_cast<int>(i2c_addr_) << std::dec << std::endl;
+            DEBUG_LOG("BNO08x - I2C Interface Created");
         }
 
     int open() override final {
         // Open the I2C bus
-        i2c_fd = ::open(i2c_bus_file, O_RDWR);
-        if (i2c_fd < 0) {
-            std::cerr << "[BNO08x] Failed to open the I2C bus" << std::endl;
+        i2c_fd_ = ::open(i2c_bus_file_.c_str(), O_RDWR);
+        if (i2c_fd_ < 0) {
+            std::cerr << "BNO08x - Failed to open the I2C bus" << std::endl;
             return -1;
         }
 
         // Acquire bus access and set the I2C address
-        if (ioctl(i2c_fd, I2C_SLAVE, i2c_addr) < 0) {
-            std::cerr << "[BNO08x] Failed to acquire bus access and/or talk to slave" << std::endl;
-            ::close(i2c_fd);
+        if (ioctl(i2c_fd_, I2C_SLAVE, i2c_addr_) < 0) {
+            std::cerr << "BNO08x - Failed to acquire bus access and/or talk to slave" << std::endl;
+            ::close(i2c_fd_);
             return -1;
         }
 
@@ -40,8 +42,8 @@ public:
         uint8_t softreset_pkt[] = {5, 0, 1, 0, 1};  // Soft reset packet
         bool success = false;
         for (uint8_t attempts = 0; attempts < 5; ++attempts) {
-            DEBUG_LOG("[BNO08x] Sending soft reset packet to the sensor");
-            if (::write(i2c_fd, softreset_pkt, sizeof(softreset_pkt)) == sizeof(softreset_pkt)) {
+            DEBUG_LOG("BNO08x - Sending soft reset packet to the sensor");
+            if (::write(i2c_fd_, softreset_pkt, sizeof(softreset_pkt)) == sizeof(softreset_pkt)) {
                 success = true;
                 break;
             }
@@ -49,36 +51,36 @@ public:
         }
 
         if (!success) {
-            std::cerr << "[BNO08x] Failed to send soft reset packet to the sensor" << std::endl;
-            ::close(i2c_fd);
+            std::cerr << "BNO08x - Failed to send soft reset packet to the sensor" << std::endl;
+            ::close(i2c_fd_);
             return -1;
         }
 
         usleep(300000);  // Delay for 300ms after the reset
 
-        DEBUG_LOG("[BNO08x] I2C Comm Opened and Soft Reset Sent");
+        DEBUG_LOG("BNO08x - I2C Comm Opened and Soft Reset Sent");
         return 0;
     }
 
     void close() override final {
-        if (i2c_fd >= 0) {
-            ::close(i2c_fd);
-            i2c_fd = -1;
-            DEBUG_LOG("[BNO08x] I2C Comm Closed");
+        if (i2c_fd_ >= 0) {
+            ::close(i2c_fd_);
+            i2c_fd_ = -1;
+            DEBUG_LOG("BNO08x - I2C Comm Closed");
         }
     }
 
     int read(uint8_t *pBuffer, unsigned len, uint32_t *t_us) override final {
-        DEBUG_LOG("[BNO08x] I2C Comm Read");
+        //DEBUG_LOG("BNO08x - I2C Comm Read");
         uint8_t header[4];
-        if (::read(i2c_fd, header, 4) != 4) {
+        if (::read(i2c_fd_, header, 4) != 4) {
             return 0;
         }
 
         uint16_t packet_size = (uint16_t)header[0] | (uint16_t)header[1] << 8;
         packet_size &= ~0x8000;
 
-        DEBUG_LOG("[BNO08x] Packet size: " << packet_size);
+        DEBUG_LOG("BNO08x - Packet size: " << packet_size);
         DEBUG_LOG_BUFFER(header, 4);
 
         if (packet_size > len) {
@@ -93,7 +95,7 @@ public:
 
         while (cargo_remaining > 0) {
             read_size = std::min((size_t)32, (size_t)cargo_remaining + (first_read ? 0 : 4));
-            if (::read(i2c_fd, i2c_buffer, read_size) != read_size) {
+            if (::read(i2c_fd_, i2c_buffer, read_size) != read_size) {
                 return 0;
             }
 
@@ -116,16 +118,16 @@ public:
 
     int write(uint8_t *pBuffer, unsigned len) override final{
         size_t write_size = std::min((size_t)32, (size_t)len);
-        if (::write(i2c_fd, pBuffer, write_size) != write_size) {
+        if (::write(i2c_fd_, pBuffer, write_size) != write_size) {
             return 0;
         }
         return write_size;
     }
 
 private:
-    int i2c_fd;
-    const char* i2c_bus_file;
-    uint8_t i2c_addr;
+    int i2c_fd_;
+    std::string i2c_bus_file_;
+    uint8_t i2c_addr_;
 };
 
 #endif // I2C_INTERFACE_HPP
