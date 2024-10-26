@@ -14,7 +14,7 @@ def generate_launch_description():
         Node(
             package='bno08x_ros2_driver',  
             executable='bno08x_driver',  
-            name='imu_driver',
+            name='bno08x_driver',
             output='screen',
             parameters=[config]
         ),
