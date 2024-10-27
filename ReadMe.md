@@ -38,6 +38,9 @@ For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 | uart.enabled	|bool	|false	|Enable UART communication.|
 | uart.device	|string	|"/dev/ttyACM0"	|UART device path.|
 
+> [!NOTE]
+> UART communication is currently under development and will be fully supported by November 15, 2024.
+> In the meantime, please use the I2C communication interface.
 
 ## Installation
 Clone the repository:
