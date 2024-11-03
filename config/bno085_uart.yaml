@@ -15,7 +15,7 @@ bno08x_driver:
 
     uart:
       enabled: true
-      device: "/dev/ttyACM0"  
+      device: "/dev/ttyUSB0"  
 
     publish:
       magnetic_field: 

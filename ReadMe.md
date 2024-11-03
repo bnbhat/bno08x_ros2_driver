@@ -8,8 +8,8 @@ For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 ### Supported Features:
 #### Communication Interfaces:
 - I2C
-- UART
-- SPI (Not yet implemented, but SPI support can be added based on demand)
+- UART (Under development)
+- SPI (Not yet implemented)
 
 #### Data Rates:
 - IMU data up to `400Hz`
@@ -172,6 +172,8 @@ The directory structure is as follows:
 This driver uses the SH-2 protocol library provided by Hillcrest Labs.
 It can be found in the `include/sh2` directory.
 Visit the official repository here: [SH-2 Protocol Library](https://github.com/ceva-dsp/sh2.git)
+
+A special thanks to **Lemvos GmbH** for providing the hardware for testing and development.
 
 ## License
 This project is licensed under the Apache License 2.0. You can find the full license text in the [LICENSE](./LICENSE) file of the repository.
