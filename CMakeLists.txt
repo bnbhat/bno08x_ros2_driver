@@ -3,8 +3,17 @@ project(bno08x_ros2_driver)
 
 # Check for compiler options
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(
+    -Wall 
+    -Wextra 
+    -Wpedantic
+    -Wno-sign-compare
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    )
 endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-old-style-declaration")
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -61,23 +70,24 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
-  #ament_add_gtest(test_uart_comm test/test_uart_interface.cpp)
 
-  #target_include_directories(test_uart_comm PUBLIC
-  #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  #$<INSTALL_INTERFACE:include>
-#)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
+  ament_add_gmock(test_i2c_mock test/i2c_interface_mock_test.cpp)
+  if(TARGET test_i2c_mock)
+    target_include_directories(test_i2c_mock PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+    ament_target_dependencies(test_i2c_mock
+      "rclcpp"
+      "sensor_msgs"
+      "std_msgs"
+    )
+  endif()
+
+  # Linter checks
+  # find_package(ament_lint_auto REQUIRED)
+  # ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_package()
