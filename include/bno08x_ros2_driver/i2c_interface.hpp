@@ -23,7 +23,7 @@ public:
             DEBUG_LOG("BNO08x - I2C Interface Created");
         }
 
-    int open() override final {
+    int open() override {
         // Open the I2C bus
         i2c_fd_ = ::open(i2c_bus_file_.c_str(), O_RDWR);
         if (i2c_fd_ < 0) {
@@ -62,7 +62,7 @@ public:
         return 0;
     }
 
-    void close() override final {
+    void close() override {
         if (i2c_fd_ >= 0) {
             ::close(i2c_fd_);
             i2c_fd_ = -1;
@@ -70,7 +70,7 @@ public:
         }
     }
 
-    int read(uint8_t *pBuffer, unsigned len, uint32_t *t_us) override final {
+    int read(uint8_t *pBuffer, unsigned len, uint32_t *t_us) override {
         //DEBUG_LOG("BNO08x - I2C Comm Read");
         uint8_t header[4];
         if (::read(i2c_fd_, header, 4) != 4) {
@@ -116,7 +116,7 @@ public:
         return packet_size;
     }
 
-    int write(uint8_t *pBuffer, unsigned len) override final{
+    int write(uint8_t *pBuffer, unsigned len) override {
         size_t write_size = std::min((size_t)32, (size_t)len);
         if (::write(i2c_fd_, pBuffer, write_size) != write_size) {
             return 0;
