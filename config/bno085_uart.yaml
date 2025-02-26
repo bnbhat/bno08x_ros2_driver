@@ -25,3 +25,7 @@ bno08x_driver:
         enabled: true
         rate: 100   # max 400 Hz 
                     # (anythihng above 100Hz depends on your hardware)
+    offsets:
+      linear_acceleration_x: 0.4
+      linear_acceleration_y: -0.4
+      linear_acceleration_z: 0.0

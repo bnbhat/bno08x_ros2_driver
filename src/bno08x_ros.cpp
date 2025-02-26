@@ -14,14 +14,14 @@ BNO08xROS::BNO08xROS()
     this->init_sensor();
 
     if (publish_imu_) {
-        this->imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
+        this->imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data_raw", 10);
         RCLCPP_INFO(this->get_logger(), "IMU Publisher created");
         RCLCPP_INFO(this->get_logger(), "IMU Rate: %d", imu_rate_);
     }
 
     if (publish_magnetic_field_) {
         mag_publisher_ = this->create_publisher<sensor_msgs::msg::MagneticField>(
-                                                                        "/magnetic_field", 10);
+                                                                        "/imu/magnetic_field", 10);
         RCLCPP_INFO(this->get_logger(), "Magnetic Field Publisher created");
         RCLCPP_INFO(this->get_logger(), "Magnetic Field Rate: %d", magnetic_field_rate_);
     }
@@ -100,6 +100,10 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.magnetic_field.rate", 100);
     this->declare_parameter<bool>("publish.imu.enabled", true);
     this->declare_parameter<int>("publish.imu.rate", 100);
+    
+    this->declare_parameter<double>("offsets.linear_accel_x", 0.0);
+    this->declare_parameter<double>("offsets.linear_accel_y", 0.0);
+    this->declare_parameter<double>("offsets.linear_accel_z", 0.0);
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -113,6 +117,10 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.magnetic_field.rate", magnetic_field_rate_);
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
+
+    this->get_parameter("offsets.linear_accel_x", linear_accel_x_);
+    this->get_parameter("offsets.linear_accel_y", linear_accel_y_);
+    this->get_parameter("offsets.linear_accel_z", linear_accel_z_);
 }
 
 /**
@@ -164,6 +172,7 @@ void BNO08xROS::init_sensor() {
  */
 void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	DEBUG_LOG("Sensor Callback");
+    //Covariances calculated from the BNO085 spec sheet
 	switch(sensor_value->sensorId){
 		case SH2_MAGNETIC_FIELD_CALIBRATED:
 			this->mag_msg_.magnetic_field.x = sensor_value->un.magneticField.x;
@@ -179,19 +188,29 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->imu_msg_.orientation.y = sensor_value->un.rotationVector.j;
 			this->imu_msg_.orientation.z = sensor_value->un.rotationVector.k;
 			this->imu_msg_.orientation.w = sensor_value->un.rotationVector.real;
+            this->imu_msg_.orientation_covariance[0] = 0.0037; // Roll
+            this->imu_msg_.orientation_covariance[4] = 0.0012; // Pitch
+            this->imu_msg_.orientation_covariance[8] = 0.0037; // Yaw
 			imu_received_flag_ |= ROTATION_VECTOR_RECEIVED;
 			break;
 		case SH2_ACCELEROMETER:
-			this->imu_msg_.linear_acceleration.x = sensor_value->un.accelerometer.x;
-			this->imu_msg_.linear_acceleration.y = sensor_value->un.accelerometer.y;
-			this->imu_msg_.linear_acceleration.z = sensor_value->un.accelerometer.z;
+            this->imu_msg_.linear_acceleration.x = sensor_value->un.accelerometer.x + linear_accel_x_;
+            this->imu_msg_.linear_acceleration.y = sensor_value->un.accelerometer.y + linear_accel_y_;
+            this->imu_msg_.linear_acceleration.z = sensor_value->un.accelerometer.z + linear_accel_z_;
+            // Add linear acceleration covariance
+            this->imu_msg_.linear_acceleration_covariance[0] = 0.1225;
+            this->imu_msg_.linear_acceleration_covariance[4] = 0.09;
+            this->imu_msg_.linear_acceleration_covariance[8] = 0.1225;
 			imu_received_flag_ |= ACCELEROMETER_RECEIVED;
 			break;
 		case SH2_GYROSCOPE_CALIBRATED:
 			this->imu_msg_.angular_velocity.x = sensor_value->un.gyroscope.x;
 			this->imu_msg_.angular_velocity.y = sensor_value->un.gyroscope.y;
 			this->imu_msg_.angular_velocity.z = sensor_value->un.gyroscope.z;
-			imu_received_flag_ |= GYROSCOPE_RECEIVED;
+            this->imu_msg_.angular_velocity_covariance[0] = 0.0029;
+            this->imu_msg_.angular_velocity_covariance[4] = 0.0029;
+            this->imu_msg_.angular_velocity_covariance[8] = 0.0029;
+            imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
 		default:
 			break;
@@ -199,8 +218,7 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 
 	if(imu_received_flag_ == (ROTATION_VECTOR_RECEIVED | ACCELEROMETER_RECEIVED | GYROSCOPE_RECEIVED)){
 		this->imu_msg_.header.frame_id = this->frame_id_;
-		this->imu_msg_.header.stamp.sec = this->get_clock()->now().seconds();
-		this->imu_msg_.header.stamp.nanosec = this->get_clock()->now().nanoseconds();
+		this->imu_msg_.header.stamp = this->get_clock()->now();
 		this->imu_publisher_->publish(this->imu_msg_);
 		imu_received_flag_ = 0;
 	}
