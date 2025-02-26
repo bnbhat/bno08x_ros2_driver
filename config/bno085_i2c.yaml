@@ -10,7 +10,7 @@ bno08x_driver:
     # (see documentation for more information)
     i2c:
       enabled: true
-      bus: "/dev/i2c-7"
+      bus: "/dev/i2c-1"
       address: "0x4A"
 
     uart:
@@ -25,3 +25,7 @@ bno08x_driver:
         enabled: true
         rate: 100   # max 400 Hz 
                     # (anythihng above 100Hz depends on your hardware)
+    offsets:
+      linear_accel_x: -0.42
+      linear_accel_y: 0.42
+      linear_accel_z: 0.0

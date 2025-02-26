@@ -48,5 +48,9 @@ private:
     bool publish_acceleration_;
     bool publish_angular_velocity_;
 
+    double linear_accel_x_;
+    double linear_accel_y_;
+    double linear_accel_z_;
+
 };
 
