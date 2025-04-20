@@ -6,8 +6,8 @@
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
-#include "bno08x_ros2_driver/bno08x.hpp"
-#include "bno08x_ros2_driver/logger.h"
+#include "bno08x_driver/bno08x.hpp"
+#include "bno08x_driver/logger.h"
 #include "sh2/sh2.h"
 
 class BNO08xROS : public rclcpp::Node

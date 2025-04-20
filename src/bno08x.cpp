@@ -1,4 +1,4 @@
-#include "bno08x_ros2_driver/bno08x.hpp"
+#include "bno08x_driver/bno08x.hpp"
 #include <unistd.h>
 #include <string.h>
 #include <sstream>

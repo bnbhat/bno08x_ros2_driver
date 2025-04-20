@@ -1,5 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
-#include "bno08x_ros2_driver/bno08x_ros.hpp"
+#include "bno08x_driver/bno08x_ros.hpp"
 
 int main(int argc, char **argv)
 {

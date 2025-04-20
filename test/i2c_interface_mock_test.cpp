@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "bno08x_ros2_driver/i2c_interface.hpp"
+#include "bno08x_driver/i2c_interface.hpp"
 
 class MockI2CInterface : public I2CInterface {
 public:

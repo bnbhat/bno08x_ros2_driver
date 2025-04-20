@@ -1,6 +1,6 @@
-#include "bno08x_ros2_driver/bno08x_ros.hpp"
-#include "bno08x_ros2_driver/i2c_interface.hpp"
-#include "bno08x_ros2_driver/uart_interface.hpp"
+#include "bno08x_driver/bno08x_ros.hpp"
+#include "bno08x_driver/i2c_interface.hpp"
+#include "bno08x_driver/uart_interface.hpp"
 
 constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
