@@ -1,5 +1,13 @@
 #pragma once
 
+#include <thread>
+#include <atomic>
+#include <csignal>
+#include <iostream>
+#include <execinfo.h>
+#include <unistd.h>
+#include <atomic>
+#include <mutex>
 #include <chrono>
 #include <functional>
 #include <rclcpp/rclcpp.hpp>
@@ -48,5 +56,10 @@ private:
     bool publish_acceleration_;
     bool publish_angular_velocity_;
 
+    std::mutex last_cb_mutex_;
+    std::atomic<std::chrono::steady_clock::time_point> last_cb_time_;
+    std::mutex bno08x_mutex_;
+    std::thread watchdog_thread_;
+    std::atomic<bool> enable_watchdog;
 };
 
