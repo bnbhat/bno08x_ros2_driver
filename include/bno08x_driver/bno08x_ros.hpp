@@ -1,12 +1,5 @@
 #pragma once
 
-#include <thread>
-#include <atomic>
-#include <csignal>
-#include <iostream>
-#include <execinfo.h>
-#include <unistd.h>
-#include <atomic>
 #include <mutex>
 #include <chrono>
 #include <functional>
@@ -16,6 +9,7 @@
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include "bno08x_driver/bno08x.hpp"
 #include "bno08x_driver/logger.h"
+#include "bno08x_driver/watchdog.hpp"
 #include "sh2/sh2.h"
 
 class BNO08xROS : public rclcpp::Node
@@ -30,6 +24,7 @@ private:
     void init_parameters();
     void init_sensor();
     void poll_timer_callback();
+    void reset();
 
     // ROS Publishers
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
@@ -43,7 +38,11 @@ private:
 
     // BNO08X Sensor Interface
     BNO08x* bno08x_;
+    std::mutex bno08x_mutex_;
     CommInterface* comm_interface_;
+
+    // Watchdog
+    Watchdog* watchdog_;
 
     // Parameters
     std::string frame_id_;
@@ -55,11 +54,5 @@ private:
     bool publish_orientation_;
     bool publish_acceleration_;
     bool publish_angular_velocity_;
-
-    std::mutex last_cb_mutex_;
-    std::atomic<std::chrono::steady_clock::time_point> last_cb_time_;
-    std::mutex bno08x_mutex_;
-    std::thread watchdog_thread_;
-    std::atomic<bool> enable_watchdog;
 };
 

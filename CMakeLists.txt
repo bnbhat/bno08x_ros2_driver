@@ -78,10 +78,12 @@ if(BUILD_TESTING)
     target_include_directories(test_i2c_mock PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
-    ament_target_dependencies(test_i2c_mock
-      "rclcpp"
-      "sensor_msgs"
-      "std_msgs"
+  endif()
+
+  ament_add_gmock(test_watchdog test/watchdog_test.cpp)
+  if(TARGET test_watchdog)
+    target_include_directories(test_watchdog PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
   endif()
 
