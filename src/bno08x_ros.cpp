@@ -39,39 +39,23 @@ BNO08xROS::BNO08xROS()
             std::bind(&BNO08xROS::poll_timer_callback, this)
         );
     }
-    RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
-    watchdog_thread_ = std::thread([this]() {
-        while (rclcpp::ok() && enable_watchdog) {
-            std::this_thread::sleep_for(std::chrono::seconds(2));  // Check every 2 seconds
-    
-            std::chrono::steady_clock::time_point last_time;
-            {
-                std::lock_guard<std::mutex> lock(last_cb_mutex_);
-                last_time = last_cb_time_;      
-            }
-    
-            auto now = std::chrono::steady_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_time).count();
 
-            if (elapsed > 2) { // Timeout threshold (2 sec)
-                DEBUG_LOG("Watchdog timeout! restarting");
-                {
-                    std::lock_guard<std::mutex> lock(bno08x_mutex_);
-                    delete bno08x_;
-                    this->init_sensor();
-                    auto time_taken  = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - now).count();
-                    RCLCPP_INFO(this->get_logger(), "WDT: %d",time_taken);
-                }
-            }
-
-        }
+    // Initialize the watchdog timer
+    auto timeout = std::chrono::milliseconds(2000);
+    watchdog_ = new Watchdog();
+    watchdog_->set_timeout(timeout);
+    watchdog_->set_check_interval(timeout / 2); 
+    watchdog_->set_callback([this]() {
+        RCLCPP_ERROR(this->get_logger(), "Watchdog timeout! No data received from sensor. Resetting...");
+        this->reset();
     });
+    watchdog_->start();
+
+    RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
 BNO08xROS::~BNO08xROS() {
-    if (watchdog_thread_.joinable()) {
-        watchdog_thread_.detach();
-    }
+    delete watchdog_;
     delete bno08x_;
     delete comm_interface_;
 }
@@ -193,10 +177,7 @@ void BNO08xROS::init_sensor() {
  */
 void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	DEBUG_LOG("Sensor Callback");
-    {
-        std::lock_guard<std::mutex> lock(last_cb_mutex_);
-        last_cb_time_ = std::chrono::steady_clock::now();
-    }
+    watchdog_->reset();
 	switch(sensor_value->sensorId){
 		case SH2_MAGNETIC_FIELD_CALIBRATED:
 			this->mag_msg_.magnetic_field.x = sensor_value->un.magneticField.x;
@@ -251,10 +232,16 @@ void BNO08xROS::poll_timer_callback() {
     {
         std::lock_guard<std::mutex> lock(bno08x_mutex_);
         this->bno08x_->poll();
-         
-    } 
+    }
 }
 
+void BNO08xROS::reset() {
+    std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    delete bno08x_;
+    this->init_sensor();
+}
+
+/*
 void BNO08xROS::tare(){
 
 }
@@ -278,3 +265,4 @@ void BNO08xROS::magnetometer_calib(){
 void BNO08xROS::command_handler(){
 
 }
+*/
