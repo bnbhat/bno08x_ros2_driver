@@ -51,7 +51,7 @@ git clone https://github.com/bnbhat/bno08x-ros2-driver.git
 Build the package:
 ```bash
 cd ~/ros_ws
-colcon build --packages-select bno08x_ros2_driver
+colcon build --packages-select bno08x_driver
 ```
 Install any missing dependencies using rosdep:
 ```bash
@@ -108,7 +108,7 @@ bno08x_driver:
 
 Launch the driver:
 ```bash
-ros2 launch bno08x_ros2_driver bno085_i2c.launch.py
+ros2 launch bno08x_driver bno085_i2c.launch.py
 ```
 
 ## Code Structure
@@ -135,7 +135,7 @@ The directory structure is as follows:
 │   ├── BNO080_085-Datasheet.pdf
 │   └── SH-2-Reference-Manual.pdf
 ├── include
-│   ├── bno08x_ros2_driver
+│   ├── bno08x_driver
 │   │   ├── bno08x.hpp
 │   │   ├── bno08x_ros.hpp
 │   │   ├── comm_interface.hpp

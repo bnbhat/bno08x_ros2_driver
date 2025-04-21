@@ -1,4 +1,4 @@
-#include "bno08x_ros2_driver/bno08x.hpp"
+#include "bno08x_driver/bno08x.hpp"
 #include <unistd.h>
 #include <string.h>
 #include <sstream>
@@ -28,6 +28,7 @@ BNO08x::BNO08x(CommInterface* comm, std::function<void(void*, sh2_SensorValue_t*
  *
  */
 BNO08x::~BNO08x(void) {
+  sh2_close();
   comm_->close();
 }
 
