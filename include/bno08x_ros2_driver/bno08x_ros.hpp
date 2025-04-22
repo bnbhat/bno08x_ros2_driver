@@ -1,15 +1,13 @@
 #pragma once
 
-#include <mutex>
 #include <chrono>
 #include <functional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
-#include "bno08x_driver/bno08x.hpp"
-#include "bno08x_driver/logger.h"
-#include "bno08x_driver/watchdog.hpp"
+#include "bno08x_ros2_driver/bno08x.hpp"
+#include "bno08x_ros2_driver/logger.h"
 #include "sh2/sh2.h"
 
 class BNO08xROS : public rclcpp::Node
@@ -24,7 +22,6 @@ private:
     void init_parameters();
     void init_sensor();
     void poll_timer_callback();
-    void reset();
 
     // ROS Publishers
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
@@ -38,11 +35,7 @@ private:
 
     // BNO08X Sensor Interface
     BNO08x* bno08x_;
-    std::mutex bno08x_mutex_;
     CommInterface* comm_interface_;
-
-    // Watchdog
-    Watchdog* watchdog_;
 
     // Parameters
     std::string frame_id_;
@@ -54,5 +47,6 @@ private:
     bool publish_orientation_;
     bool publish_acceleration_;
     bool publish_angular_velocity_;
+
 };
 

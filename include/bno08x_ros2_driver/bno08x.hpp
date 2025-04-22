@@ -11,8 +11,8 @@
 #include "sh2/sh2.h"
 #include "sh2/sh2_SensorValue.h"
 #include "sh2/sh2_err.h"
-#include "bno08x_driver/comm_interface.hpp"
-#include "bno08x_driver/logger.h"
+#include "bno08x_ros2_driver/comm_interface.hpp"
+#include "bno08x_ros2_driver/logger.h"
 
 /* Additional Activities not listed in SH-2 lib */
 #define PAC_ON_STAIRS 8 ///< Activity code for being on stairs
