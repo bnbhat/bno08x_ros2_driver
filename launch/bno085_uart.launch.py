@@ -5,14 +5,14 @@ import os
 
 def generate_launch_description():
     config = os.path.join(
-        get_package_share_directory('bno08x_driver'), 
+        get_package_share_directory('bno08x_ros2_driver'), 
         'config',
         'bno085_uart.yaml'
     )
 
     return LaunchDescription([
         Node(
-            package='bno08x_driver',  
+            package='bno08x_ros2_driver',  
             executable='bno08x_driver',  
             name='bno08x_driver',
             output='screen',
