@@ -1,4 +1,4 @@
-name: CI - Daily Cron Job
+name: Daily Build
 
 on:
   push:

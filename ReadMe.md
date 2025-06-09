@@ -5,6 +5,9 @@ ROS2 driver for the BNO08x sensor family based on the SH-2 protocol.
 The BNO08x family (BNO085/BNO086) is a compact System in Package (SiP) with integrated accelerometer, gyroscope, magnetometer, and a 32-bit ARM® Cortex™-M0+ running CEVA's SH-2 firmware. It delivers real-time 3D orientation, heading, calibrated acceleration, and angular velocity, with on-board sensor fusion algorithms and calibration. It supports I2C, SPI, and UART interfaces for sensor data output.
 For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 
+[![CI](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci.yaml/badge.svg)](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci.yaml)
+[![Daily Build](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci-cron.yaml/badge.svg)](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci-cron.yaml)  
+
 ### Supported Features:
 #### Communication Interfaces:
 - I2C
