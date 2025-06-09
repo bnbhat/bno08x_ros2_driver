@@ -20,10 +20,6 @@ For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 >Please feel free to open an issue if you encounter any problems or have feature requests.   
 >If you're using this driver, consider giving the repository a **star** to show your support.  
 
-> [!NOTE]
-> If you need SPI support, kindly open an issue, and it will be added to the driver in a 
-> future update.
-
 ## Parameters
 | Parameter |	Type	| Default	| Description |
 |-----------|---------|-----------|-------------|
@@ -38,9 +34,6 @@ For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 | uart.enabled	|bool	|false	|Enable UART communication.|
 | uart.device	|string	|"/dev/ttyACM0"	|UART device path.|
 
-> [!NOTE]
-> UART communication is currently under development and will be fully supported by November 15, 2024.
-> In the meantime, please use the I2C communication interface.
 
 ## Installation
 Clone the repository:
