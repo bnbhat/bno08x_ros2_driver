@@ -704,7 +704,6 @@ void shtp_close(void *pInstance)
     // Clear pShtp
     // (Resetting pShtp->pHal to 0, returns this instance to the free pool)
     memset(pShtp, 0, sizeof(shtp_t));
-    shtp_initialized = false;
 }
 
 // Register the pointer of the callback function for reporting asynchronous events

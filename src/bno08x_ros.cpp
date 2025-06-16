@@ -1,6 +1,6 @@
-#include "bno08x_driver/bno08x_ros.hpp"
-#include "bno08x_driver/i2c_interface.hpp"
-#include "bno08x_driver/uart_interface.hpp"
+#include "bno08x_ros2_driver/bno08x_ros.hpp"
+#include "bno08x_ros2_driver/i2c_interface.hpp"
+#include "bno08x_ros2_driver/uart_interface.hpp"
 
 constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
@@ -39,23 +39,10 @@ BNO08xROS::BNO08xROS()
             std::bind(&BNO08xROS::poll_timer_callback, this)
         );
     }
-
-    // Initialize the watchdog timer
-    auto timeout = std::chrono::milliseconds(2000);
-    watchdog_ = new Watchdog();
-    watchdog_->set_timeout(timeout);
-    watchdog_->set_check_interval(timeout / 2); 
-    watchdog_->set_callback([this]() {
-        RCLCPP_ERROR(this->get_logger(), "Watchdog timeout! No data received from sensor. Resetting...");
-        this->reset();
-    });
-    watchdog_->start();
-
     RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
 BNO08xROS::~BNO08xROS() {
-    delete watchdog_;
     delete bno08x_;
     delete comm_interface_;
 }
@@ -185,7 +172,6 @@ void BNO08xROS::init_sensor() {
  */
 void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	DEBUG_LOG("Sensor Callback");
-    watchdog_->reset();
 	switch(sensor_value->sensorId){
 		case SH2_MAGNETIC_FIELD_CALIBRATED:
 			this->mag_msg_.magnetic_field.x = sensor_value->un.magneticField.x;
@@ -241,40 +227,5 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
  * called by the poll_timer_ timer
  */
 void BNO08xROS::poll_timer_callback() {
-    {
-        std::lock_guard<std::mutex> lock(bno08x_mutex_);
-        this->bno08x_->poll();
-    }
+	this->bno08x_->poll();
 }
-
-void BNO08xROS::reset() {
-    std::lock_guard<std::mutex> lock(bno08x_mutex_);
-    delete bno08x_;
-    this->init_sensor();
-}
-
-/*
-void BNO08xROS::tare(){
-
-}
-
-void BNO08xROS::calibration(){
-
-}
-
-void BNO08xROS::accelerometer_calib(){
-
-}
-
-void BNO08xROS::gyroscope_calib(){
-
-}
-
-void BNO08xROS::magnetometer_calib(){
-
-}
-
-void BNO08xROS::command_handler(){
-
-}
-*/
