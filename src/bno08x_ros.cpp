@@ -150,21 +150,29 @@ void BNO08xROS::init_sensor() {
         throw std::runtime_error("BNO08x initialization failed");
     }
 
-    if(!this->bno08x_->enable_report(SH2_MAGNETIC_FIELD_CALIBRATED, 
-                                      1000000/this->magnetic_field_rate_)){     // Hz to us
-      RCLCPP_ERROR(this->get_logger(), "Failed to enable magnetic field sensor");
+    if (publish_magnetic_field_) {
+        if(!this->bno08x_->enable_report(SH2_MAGNETIC_FIELD_CALIBRATED, 
+                                         1000000/this->magnetic_field_rate_)){   // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable magnetic field sensor");
+        }
     }
-    if(!this->bno08x_->enable_report(SH2_ROTATION_VECTOR, 
-                                        1000000/this->imu_rate_)){              // Hz to us
-      RCLCPP_ERROR(this->get_logger(), "Failed to enable rotation vector sensor");
+    if (publish_imu_) {
+        if(!this->bno08x_->enable_report(SH2_ROTATION_VECTOR, 
+                                         1000000/this->imu_rate_)){              // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable rotation vector sensor");
+        }
+        if(!this->bno08x_->enable_report(SH2_ACCELEROMETER,
+                                         1000000/this->imu_rate_)){              // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable accelerometer sensor");
+        }
+        if(!this->bno08x_->enable_report(SH2_GYROSCOPE_CALIBRATED, 
+                                         1000000/this->imu_rate_)){              // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable gyroscope sensor");
+        }
     }
-    if(!this->bno08x_->enable_report(SH2_ACCELEROMETER,
-                                        1000000/this->imu_rate_)){              // Hz to us
-        RCLCPP_ERROR(this->get_logger(), "Failed to enable accelerometer sensor");
-    }
-    if(!this->bno08x_->enable_report(SH2_GYROSCOPE_CALIBRATED, 
-                                        1000000/this->imu_rate_)){              // Hz to us
-        RCLCPP_ERROR(this->get_logger(), "Failed to enable gyroscope sensor");
+    if (!(publish_imu_ || publish_magnetic_field_)) {
+        RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
+        throw std::runtime_error("No sensor reports enabled");
     }
 }   
 
@@ -186,7 +194,11 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->mag_msg_.header.frame_id = this->frame_id_;
 			this->mag_msg_.header.stamp.sec = this->get_clock()->now().seconds();
 			this->mag_msg_.header.stamp.nanosec = this->get_clock()->now().nanoseconds();
-			this->mag_publisher_->publish(this->mag_msg_);
+			// IMU will still return infrequent magnetic field reports even if the report
+			// was not enabled, so check it was enabled before publishing.
+			if (publish_magnetic_field_) {
+				this->mag_publisher_->publish(this->mag_msg_);
+			}
 			break;
 		case SH2_ROTATION_VECTOR:
 			this->imu_msg_.orientation.x = sensor_value->un.rotationVector.i;
