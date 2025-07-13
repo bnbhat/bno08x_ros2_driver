@@ -13,10 +13,6 @@ bno08x_driver:
       bus: "/dev/i2c-7"
       address: "0x4A"
 
-    uart:
-      enabled: false
-      device: "/dev/ttyACM0"  
-
     publish:
       magnetic_field: 
         enabled: true

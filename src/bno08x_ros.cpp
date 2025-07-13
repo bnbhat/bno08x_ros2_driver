@@ -1,6 +1,7 @@
 #include "bno08x_driver/bno08x_ros.hpp"
 #include "bno08x_driver/i2c_interface.hpp"
 #include "bno08x_driver/uart_interface.hpp"
+#include "bno08x_driver/spi_interface.hpp"
 
 constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
@@ -66,9 +67,10 @@ BNO08xROS::~BNO08xROS() {
  * communication interface based on the parameters
  */
 void BNO08xROS::init_comms() {
-    bool i2c_enabled, uart_enabled;
+    bool i2c_enabled, uart_enabled, spi_enabled;
     this->get_parameter("i2c.enabled", i2c_enabled);
     this->get_parameter("uart.enabled", uart_enabled);
+    this->get_parameter("spi.enabled", spi_enabled);
 
     if (i2c_enabled) {
         std::string device;
@@ -78,10 +80,10 @@ void BNO08xROS::init_comms() {
         RCLCPP_INFO(this->get_logger(), "Communication Interface: I2C");
         try {
             comm_interface_ = new I2CInterface(device, std::stoi(address, nullptr, 16));
-        } catch (const std::bad_alloc& e) {
+        } catch (const std::exception& e) {
             RCLCPP_ERROR(this->get_logger(), 
-                    "Failed to allocate memory for I2CInterface object: %s", e.what());
-            throw std::runtime_error("I2CInterface object allocation failed");
+                    "Failed to create I2CInterface: %s", e.what());
+            throw std::runtime_error("I2CInterface creation failed");
         }
     } else if (uart_enabled) {
         RCLCPP_INFO(this->get_logger(), "Communication Interface: UART");
@@ -89,10 +91,21 @@ void BNO08xROS::init_comms() {
         this->get_parameter("uart.device", device);
         try{
             comm_interface_ = new UARTInterface(device);
-        } catch (const std::bad_alloc& e) {
+        } catch (const std::exception& e) {
             RCLCPP_ERROR(this->get_logger(), 
-                    "Failed to allocate memory for UARTInterface object: %s", e.what());
-            throw std::runtime_error("UARTInterface object allocation failed");
+                    "UART Interface not implemented: %s", e.what());
+            throw std::runtime_error("UARTInterface creation failed");
+        }
+    } else if (spi_enabled){
+        RCLCPP_INFO(this->get_logger(), "Communication Interface: SPI");
+        std::string device;
+        this->get_parameter("spi.device", device);
+        try {
+            comm_interface_ = new SPIInterface(device);
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(), 
+                    "SPI Interface not implemented: %s", e.what());
+            throw std::runtime_error("SPIInterface creation failed");
         }
     } else {
         RCLCPP_ERROR(this->get_logger(), "No communication interface enabled!");
@@ -119,6 +132,8 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<std::string>("i2c.address", "0x4A");
     this->declare_parameter<bool>("uart.enabled", false);
     this->declare_parameter<std::string>("uart.device", "/dev/ttyACM0");
+    this->declare_parameter<bool>("spi.enabled", false);
+    this->declare_parameter<std::string>("spi.device", "/dev/spidev0.0");
 
     this->get_parameter("frame_id", frame_id_);
 
@@ -252,29 +267,3 @@ void BNO08xROS::reset() {
     delete bno08x_;
     this->init_sensor();
 }
-
-/*
-void BNO08xROS::tare(){
-
-}
-
-void BNO08xROS::calibration(){
-
-}
-
-void BNO08xROS::accelerometer_calib(){
-
-}
-
-void BNO08xROS::gyroscope_calib(){
-
-}
-
-void BNO08xROS::magnetometer_calib(){
-
-}
-
-void BNO08xROS::command_handler(){
-
-}
-*/

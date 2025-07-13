@@ -6,22 +6,16 @@ The BNO08x family (BNO085/BNO086) is a compact System in Package (SiP) with inte
 For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 
 [![CI](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci.yaml/badge.svg)](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci.yaml)
-[![Daily Build](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci-cron.yaml/badge.svg)](https://github.com/bnbhat/bno08x_ros2_driver/actions/workflows/ci-cron.yaml)  
 
 ### Supported Features:
 #### Communication Interfaces:
 - I2C
-- UART (Under development)
-- SPI (Not yet implemented)
+- UART (Not implemented)
+- SPI (Not implemented)
 
 #### Data Rates:
 - IMU data up to `400Hz`
 - Magnetic field data up to `100Hz`
-
-> [!IMPORTANT]
-> This driver is **actively maintained**, with new features and bug fixes regularly added. 
->Please feel free to open an issue if you encounter any problems or have feature requests.   
->If you're using this driver, consider giving the repository a **star** to show your support.  
 
 ## Parameters
 | Parameter |	Type	| Default	| Description |
@@ -34,9 +28,6 @@ For more information, refer to the [datasheet](./docs/BNO080_085-Datasheet.pdf).
 | i2c.enabled	|bool	|true	|Enable I2C communication.|
 | i2c.device	|string	|"/dev/i2c-7"	|I2C device path.|
 | i2c.address	|string	|"0x4A"	|I2C address of the BNO08x sensor.|
-| uart.enabled	|bool	|false	|Enable UART communication.|
-| uart.device	|string	|"/dev/ttyACM0"	|UART device path.|
-
 
 ## Installation
 Clone the repository:
@@ -88,10 +79,6 @@ bno08x_driver:
       device: "/dev/i2c-18"
       address: "0x4A"
 
-    uart:
-      enabled: false
-      device: "/dev/ttyACM0"  
-
     publish:
       all: false
       magnetic_field: 
@@ -114,7 +101,7 @@ provides required methods to interact with the sensor using the [SH-2 protocol](
  
 The communication interface is abstracted using the `CommInterface` class, which can be implemented for any communication method (I2C, UART, SPI).
 
-Currently, `I2C` and `UART` communication interfaces are implemted and tested on Linux systems.
+Currently, `I2C` communication interface is implemted and tested on Linux systems.
 
 The Core `BNO08x` implementation can be used in any C++ project on any platform by implementing the `CommInterface` for the respective platform.
 
@@ -125,8 +112,7 @@ The directory structure is as follows:
 .
 ├── CMakeLists.txt
 ├── config
-│   ├── bno085_i2c.yaml
-│   └── bno085_uart.yaml
+│   └── bno085_i2c.yaml
 ├── docs
 │   ├── BNO080_085-Datasheet.pdf
 │   └── SH-2-Reference-Manual.pdf
@@ -137,6 +123,7 @@ The directory structure is as follows:
 │   │   ├── comm_interface.hpp
 │   │   ├── i2c_interface.hpp
 │   │   ├── logger.h
+│   │   ├── spi_interface.hpp
 │   │   └── uart_interface.hpp
 │   └── sh2
 │       ├── CMakeLists.txt
@@ -153,8 +140,7 @@ The directory structure is as follows:
 │       ├── shtp.c
 │       └── shtp.h
 ├── launch
-│   ├── bno085_i2c.launch.py
-│   └── bno085_uart.launch.py
+│   └── bno085_i2c.launch.py
 ├── LICENSE
 ├── package.xml
 ├── ReadMe.md
@@ -168,8 +154,6 @@ The directory structure is as follows:
 This driver uses the SH-2 protocol library provided by Hillcrest Labs.
 It can be found in the `include/sh2` directory.
 Visit the official repository here: [SH-2 Protocol Library](https://github.com/ceva-dsp/sh2.git)
-
-A special thanks to **Lemvos GmbH** for providing the hardware for testing and development.
 
 ## License
 This project is licensed under the Apache License 2.0. You can find the full license text in the [LICENSE](./LICENSE) file of the repository.
