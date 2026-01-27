@@ -1,16 +1,14 @@
 #pragma once
 
 #include <mutex>
-#include <chrono>
-#include <functional>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/logging.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
-#include <rcl_interfaces/msg/parameter_descriptor.hpp>
+
 #include "bno08x_driver/bno08x.hpp"
-#include "bno08x_driver/logger.h"
 #include "bno08x_driver/watchdog.hpp"
-#include "sh2/sh2.h"
 
 class BNO08xROS : public rclcpp::Node
 {
@@ -55,9 +53,21 @@ private:
     bool publish_orientation_;
     bool publish_acceleration_;
     bool publish_angular_velocity_;
-
-    double orientation_variance_;
+    
+    // Covariance in euler [x, y, z] angles
+    std::vector<double> orientation_covariance_;
     double gyrometer_variance_;
     double linear_accel_variance_;
+
+    
+    // Default Values
+    // 3.5 degrees rotation vector error
+    const std::vector<double> default_orientation_covariance_ = 
+    {
+      pow(3.5 * M_PI / 180, 2), 0, 0,
+      0, pow(3.5 * M_PI / 180, 2), 0,
+      0, 0, pow(3.5 * M_PI / 180, 2)
+    };
+
 };
 

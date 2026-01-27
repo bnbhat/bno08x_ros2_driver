@@ -132,13 +132,11 @@ void BNO08xROS::init_parameters() {
     
     // I believe the performance metrics need to be squared from the data sheet to meet the 
     // definition of variance.
-    
-    // 3.5 degrees rotation vector error
-    this->declare_parameter("publish.imu.orientation_variance", pow(3.5 * M_PI / 180, 2));
+    this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     // 3.1 degrees/s gyrometer error
-    this->declare_parameter("publish.imu.gyrometer_variance", pow(3.1 * M_PI / 180, 2));
+    this->declare_parameter<double>("publish.imu.gyrometer_variance", pow(3.1 * M_PI / 180, 2));
     // 0.35 m/s^2 linear acceleration error
-    this->declare_parameter("publish.imu.linear_variance", pow(0.35, 2));
+    this->declare_parameter<double>("publish.imu.linear_variance", pow(0.35, 2));
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -155,7 +153,20 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
 
-    this->get_parameter("publish.imu.orientation_variance", orientation_variance_);
+    // Covariance in euler [x, y, z] angles
+    this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
+
+    if (this->orientation_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.orientation_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default orientation_covariance
+      this->orientation_covariance_ = this->default_orientation_covariance_;
+    }
+
     this->get_parameter("publish.imu.gyrometer_variance", gyrometer_variance_);
     this->get_parameter("publish.imu.linear_variance", linear_accel_variance_);
 }
@@ -210,12 +221,12 @@ void BNO08xROS::init_sensor() {
 
 void BNO08xROS::init_imu_covariance()
 {
-    this->imu_msg_.orientation_covariance = 
-    { 
-      this->orientation_variance_, 0, 0, // x-covariance 
-      0, this->orientation_variance_, 0, // y-covariance
-      0, 0, this->orientation_variance_, // z-covariance
-    };
+    // copy orientation_covariance to the imu_msg_
+    std::copy(
+        this->orientation_covariance_.begin(),
+        this->orientation_covariance_.end(),
+        this->imu_msg_.orientation_covariance.begin()
+    );
 
     this->imu_msg_.angular_velocity_covariance = 
     { 
