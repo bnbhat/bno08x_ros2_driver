@@ -56,8 +56,8 @@ private:
     
     // Covariance in euler [x, y, z] angles
     std::vector<double> orientation_covariance_;
-    double gyrometer_variance_;
-    double linear_accel_variance_;
+    std::vector<double> gyrometer_covariance_;
+    std::vector<double> linear_covariance_;
 
     
     // Default Values
@@ -67,6 +67,20 @@ private:
       pow(3.5 * M_PI / 180, 2), 0, 0,
       0, pow(3.5 * M_PI / 180, 2), 0,
       0, 0, pow(3.5 * M_PI / 180, 2)
+    };
+    // 3.1 degrees/s gyrometer error
+    const std::vector<double> default_gyrometer_covariance_ = 
+    {
+      pow(3.1 * M_PI / 180, 2), 0, 0,
+      0, pow(3.1 * M_PI / 180, 2), 0,
+      0, 0, pow(3.1 * M_PI / 180, 2)
+    };
+    // 0.35 m/s^2 linear acceleration error
+    const std::vector<double> default_linear_covariance_ = 
+    {
+      pow(0.35, 2), 0, 0,
+      0, pow(0.35, 2), 0,
+      0, 0, pow(0.35, 2)
     };
 
 };
