@@ -23,3 +23,9 @@ bno08x_driver:
         orientation_covariance: [5.0e-5, 0.0, 0.0,
                                  0.0, 5.0e-5, 0.0,
                                  0.0, 0.0, 5.0e-5]
+        gyrometer_covariance:  [2.9e-3, 0.0, 0.0,
+                                0.0, 2.9e-3, 0.0,
+                                0.0, 0.0, 2.9e-3]
+        linear_covariance:  [0.1225, 0.0, 0.0,
+                             0.0, 0.1225, 0.0,
+                             0.0, 0.0, 0.1225]
