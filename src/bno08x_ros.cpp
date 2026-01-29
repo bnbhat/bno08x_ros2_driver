@@ -133,10 +133,8 @@ void BNO08xROS::init_parameters() {
     // I believe the performance metrics need to be squared from the data sheet to meet the 
     // definition of variance.
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
-    // 3.1 degrees/s gyrometer error
-    this->declare_parameter<double>("publish.imu.gyrometer_variance", pow(3.1 * M_PI / 180, 2));
-    // 0.35 m/s^2 linear acceleration error
-    this->declare_parameter<double>("publish.imu.linear_variance", pow(0.35, 2));
+    this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
+    this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance",this->default_linear_covariance_);
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -166,9 +164,28 @@ void BNO08xROS::init_parameters() {
       // resets back to default orientation_covariance
       this->orientation_covariance_ = this->default_orientation_covariance_;
     }
-
-    this->get_parameter("publish.imu.gyrometer_variance", gyrometer_variance_);
-    this->get_parameter("publish.imu.linear_variance", linear_accel_variance_);
+	// gyrometer ccovaraince
+	if (this->gyrometer_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.gyrometer_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default gyrometer_covariance
+      this->gyrometer_covariance_ = this->default_gyrometer_covariance_;
+    }
+	// linear acceleration covaraince
+	if (this->linear_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.linear_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default orientation_covariance
+      this->linear_covariance_ = this->default_linear_covariance_;
+    }
 }
 
 /**
@@ -227,20 +244,18 @@ void BNO08xROS::init_imu_covariance()
         this->orientation_covariance_.end(),
         this->imu_msg_.orientation_covariance.begin()
     );
-
-    this->imu_msg_.angular_velocity_covariance = 
-    { 
-      this->gyrometer_variance_, 0, 0, // x-covariance 
-      0, this->gyrometer_variance_, 0, // y-covariance
-      0, 0, this->gyrometer_variance_, // z-covariance
-    };
-
-    this->imu_msg_.linear_acceleration_covariance = 
-    {
-      this->linear_accel_variance_, 0, 0, // x-covariance
-      0, this->linear_accel_variance_, 0, // y-covariance
-      0, 0, this->linear_accel_variance_, // z-covariance
-    };
+	// copy gyrometer_covariance to the imu_msg_
+    std::copy(
+        this->gyrometer_covariance_.begin(),
+        this->gyrometer_covariance_.end(),
+        this->imu_msg_.gyrometer_covariance.begin()
+    );
+	// copy linear_covariance to the imu_msg_
+    std::copy(
+        this->linear_covariance_.begin(),
+        this->linear_covariance_.end(),
+        this->imu_msg_.linear_covariance.begin()
+    );
 }
 
 /**
