@@ -133,7 +133,9 @@ void BNO08xROS::init_parameters() {
     // I believe the performance metrics need to be squared from the data sheet to meet the 
     // definition of variance.
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
+	// definition of gyrometer covariance.
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
+	// definition of linear acceleration covariance.
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance",this->default_linear_covariance_);
 
     this->declare_parameter<bool>("i2c.enabled", true);
