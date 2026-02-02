@@ -10,8 +10,8 @@ bno08x_driver:
     # (see documentation for more information)
     i2c:
       enabled: true
-      bus: "/dev/i2c-7"
-      address: "0x4A"
+      bus: "/dev/i2c-1"
+      address: "0x4B"
 
     publish:
       magnetic_field: 
@@ -19,5 +19,13 @@ bno08x_driver:
         rate: 100   # max 100 Hz
       imu:
         enabled: true
-        rate: 100   # max 400 Hz 
-                    # (anythihng above 100Hz depends on your hardware)
+        rate: 100   # max 400 Hz # (anything above 100Hz depends on your hardware)
+        orientation_covariance: [5.0e-5, 0.0, 0.0,
+                                 0.0, 5.0e-5, 0.0,
+                                 0.0, 0.0, 5.0e-5]
+        gyrometer_covariance:  [2.9e-3, 0.0, 0.0,
+                                0.0, 2.9e-3, 0.0,
+                                0.0, 0.0, 2.9e-3]
+        linear_covariance:  [0.1225, 0.0, 0.0,
+                             0.0, 0.1225, 0.0,
+                             0.0, 0.0, 0.1225]

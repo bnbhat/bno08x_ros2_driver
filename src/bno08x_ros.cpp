@@ -3,6 +3,8 @@
 #include "bno08x_driver/uart_interface.hpp"
 #include "bno08x_driver/spi_interface.hpp"
 
+#include <cmath>
+
 constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
 constexpr uint8_t GYROSCOPE_RECEIVED       = 0x04;
@@ -15,6 +17,7 @@ BNO08xROS::BNO08xROS()
     this->init_sensor();
 
     if (publish_imu_) {
+        this->init_imu_covariance();
         this->imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
         RCLCPP_INFO(this->get_logger(), "IMU Publisher created");
         RCLCPP_INFO(this->get_logger(), "IMU Rate: %d", imu_rate_);
@@ -126,6 +129,14 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.magnetic_field.rate", 100);
     this->declare_parameter<bool>("publish.imu.enabled", true);
     this->declare_parameter<int>("publish.imu.rate", 100);
+    
+    // I believe the performance metrics need to be squared from the data sheet to meet the 
+    // definition of variance.
+    this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
+	// definition of gyrometer covariance.
+    this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
+	// definition of linear acceleration covariance.
+    this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance",this->default_linear_covariance_);
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -141,6 +152,42 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.magnetic_field.rate", magnetic_field_rate_);
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
+
+    // Covariance in euler [x, y, z] angles
+    this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
+
+    if (this->orientation_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.orientation_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default orientation_covariance
+      this->orientation_covariance_ = this->default_orientation_covariance_;
+    }
+	// gyrometer ccovaraince
+	if (this->gyrometer_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.gyrometer_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default gyrometer_covariance
+      this->gyrometer_covariance_ = this->default_gyrometer_covariance_;
+    }
+	// linear acceleration covaraince
+	if (this->linear_covariance_.size() != 9) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          "publish.imu.linear_covariance must be a double array of length 9, setting covariance matrix "
+          "to default values."
+      );
+      
+      // resets back to default orientation_covariance
+      this->linear_covariance_ = this->default_linear_covariance_;
+    }
 }
 
 /**
@@ -191,6 +238,28 @@ void BNO08xROS::init_sensor() {
     }
 }   
 
+void BNO08xROS::init_imu_covariance()
+{
+    // copy orientation_covariance to the imu_msg_
+    std::copy(
+        this->orientation_covariance_.begin(),
+        this->orientation_covariance_.end(),
+        this->imu_msg_.orientation_covariance.begin()
+    );
+	// copy gyrometer_covariance to the imu_msg_
+    std::copy(
+        this->gyrometer_covariance_.begin(),
+        this->gyrometer_covariance_.end(),
+        this->imu_msg_.angular_velocity_covariance.begin()
+    );
+	// copy linear_covariance to the imu_msg_
+    std::copy(
+        this->linear_covariance_.begin(),
+        this->linear_covariance_.end(),
+        this->imu_msg_.linear_acceleration_covariance.begin()
+    );
+}
+
 /**
  * @brief Callback function for sensor events
  * 
@@ -239,9 +308,12 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	}
 
 	if(imu_received_flag_ == (ROTATION_VECTOR_RECEIVED | ACCELEROMETER_RECEIVED | GYROSCOPE_RECEIVED)){
+
 		this->imu_msg_.header.frame_id = this->frame_id_;
+    
 		this->imu_msg_.header.stamp.sec = this->get_clock()->now().seconds();
 		this->imu_msg_.header.stamp.nanosec = this->get_clock()->now().nanoseconds();
+    
 		this->imu_publisher_->publish(this->imu_msg_);
 		imu_received_flag_ = 0;
 	}
