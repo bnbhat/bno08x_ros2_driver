@@ -250,13 +250,13 @@ void BNO08xROS::init_imu_covariance()
     std::copy(
         this->gyrometer_covariance_.begin(),
         this->gyrometer_covariance_.end(),
-        this->imu_msg_.gyrometer_covariance.begin()
+        this->imu_msg_.angular_velocity_covariance.begin()
     );
 	// copy linear_covariance to the imu_msg_
     std::copy(
         this->linear_covariance_.begin(),
         this->linear_covariance_.end(),
-        this->imu_msg_.linear_covariance.begin()
+        this->imu_msg_.linear_acceleration_covariance.begin()
     );
 }
 
