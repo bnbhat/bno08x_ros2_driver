@@ -119,6 +119,20 @@ inline void BNO08x::sensor_event_callback(void *cookie, sh2_SensorEvent_t *event
     return;
   }
 
+  /* 
+  // Debug: log raw report and decoded status for gyroscope - it looks like accuracy is always 0?
+  if (sensor_value.sensorId == SH2_GYROSCOPE_CALIBRATED) {
+    std::cerr << "BNO08x - GYRO event: status=0x" << std::hex << int(sensor_value.status)
+              << " report[2]=0x" << int(event->report[2]) << std::dec
+              << " seq=" << int(sensor_value.sequence) << "\n";
+    std::cerr << "BNO08x - raw report:";
+    for (int i = 0; i < SH2_MAX_SENSOR_EVENT_LEN; ++i) {
+      std::cerr << " " << std::hex << int(event->report[i]);
+    }
+    std::cerr << std::dec << "\n";
+  }
+  */
+
   instance->host_callback_(cookie, &sensor_value);
 }
 

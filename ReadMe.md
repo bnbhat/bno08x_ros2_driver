@@ -1,3 +1,11 @@
+This fork fixes the following issue: https://github.com/bnbhat/bno08x_ros2_driver/issues/16
+
+Please see [this guide](https://github.com/slgrobotics/robots_bringup/blob/main/Docs/Sensors/BNO085%20IMU.md) for details
+
+The original README follows
+
+---------------
+
 # BNO08x ROS2 Driver
 
 ROS2 driver for the BNO08x sensor family based on the SH-2 protocol.

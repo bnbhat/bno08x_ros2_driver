@@ -1,7 +1,9 @@
 bno08x_driver:
   ros__parameters:
 
-    frame_id: "bno085"  # The frame_id to use for the sensor data
+    frame_id: "imu_link"  # The frame_id to use for the sensor data
+    verbose: false        # Enable verbose logging (default false)
+    scale_covariance_by_calib: false  # Scale covariance by calibration accuracy (default false)
 
     # Communication Interface
     # Select the communication interface to use 
@@ -10,8 +12,8 @@ bno08x_driver:
     # (see documentation for more information)
     i2c:
       enabled: true
-      bus: "/dev/i2c-7"
-      address: "0x4A"
+      bus: "/dev/i2c-1"   # I2C bus device (bus "1" is default on Raspberry Pi, use "ls /dev/i2c*")
+      address: "0x4B"     # I2C address (0x4A or 0x4B depending on the board configuration, use "i2cdetect -y 1")
 
     publish:
       magnetic_field: 
@@ -19,5 +21,5 @@ bno08x_driver:
         rate: 100   # max 100 Hz
       imu:
         enabled: true
-        rate: 100   # max 400 Hz 
-                    # (anythihng above 100Hz depends on your hardware)
+        rate: 100   # max 400 Hz (anythihng above 100Hz depends on your hardware)
+        orientation_yaw_variance: 0.0075   # default 0.0075 (≈5°) means pretty trustworthy
