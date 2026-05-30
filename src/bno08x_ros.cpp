@@ -74,6 +74,16 @@ BNO08xROS::BNO08xROS()
         std::bind(&BNO08xROS::save_calibration_callback, this,
                   std::placeholders::_1, std::placeholders::_2));
 
+    tare_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/imu/tare",
+        std::bind(&BNO08xROS::tare_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
+
+    clear_tare_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/imu/clear_tare",
+        std::bind(&BNO08xROS::clear_tare_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
+
     RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
@@ -394,6 +404,38 @@ void BNO08xROS::reset() {
     std::lock_guard<std::mutex> lock(bno08x_mutex_);
     delete bno08x_;
     this->init_sensor();
+}
+
+void BNO08xROS::tare_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    bool ok = bno08x_->tare();
+    response->success = ok;
+    response->message = ok ? "Tare applied. Current orientation is now the zero reference."
+                           : "Failed to apply tare.";
+    if (ok) {
+        RCLCPP_INFO(this->get_logger(), "Tare applied successfully.");
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to apply tare.");
+    }
+}
+
+void BNO08xROS::clear_tare_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    bool ok = bno08x_->clear_tare();
+    response->success = ok;
+    response->message = ok ? "Tare cleared. Orientation reference restored to default."
+                           : "Failed to clear tare.";
+    if (ok) {
+        RCLCPP_INFO(this->get_logger(), "Tare cleared successfully.");
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to clear tare.");
+    }
 }
 
 void BNO08xROS::save_calibration_callback(

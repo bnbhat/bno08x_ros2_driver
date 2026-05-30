@@ -35,6 +35,9 @@ public:
   void poll(void);
   bool save_dcd(void);
   bool set_dcd_auto_save(bool enabled);
+  bool tare(uint8_t axes = SH2_TARE_X | SH2_TARE_Y | SH2_TARE_Z,
+            sh2_TareBasis_t basis = SH2_TARE_BASIS_ROTATION_VECTOR);
+  bool clear_tare(void);
   sh2_ProductIds_t prodIds; ///< The product IDs returned by the sensor
 
 protected:

@@ -225,6 +225,14 @@ bool BNO08x::set_dcd_auto_save(bool enabled) {
   return sh2_setDcdAutoSave(enabled) == SH2_OK;
 }
 
+bool BNO08x::tare(uint8_t axes, sh2_TareBasis_t basis) {
+  return sh2_setTareNow(axes, basis) == SH2_OK;
+}
+
+bool BNO08x::clear_tare(void) {
+  return sh2_clearTare() == SH2_OK;
+}
+
 bool BNO08x::enable_report(sh2_SensorId_t sensorId,
                                    uint32_t interval_us) {
   static sh2_SensorConfig_t config;
