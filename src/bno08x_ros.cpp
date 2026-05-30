@@ -3,6 +3,8 @@
 #include "bno08x_driver/uart_interface.hpp"
 #include "bno08x_driver/spi_interface.hpp"
 
+#include <cmath>
+
 constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
 constexpr uint8_t GYROSCOPE_RECEIVED       = 0x04;
@@ -15,6 +17,7 @@ BNO08xROS::BNO08xROS()
     this->init_sensor();
 
     if (publish_imu_) {
+        this->init_imu_covariance();
         this->imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
         RCLCPP_INFO(this->get_logger(), "IMU Publisher created");
         RCLCPP_INFO(this->get_logger(), "IMU Rate: %d", imu_rate_);
@@ -126,6 +129,9 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.magnetic_field.rate", 100);
     this->declare_parameter<bool>("publish.imu.enabled", true);
     this->declare_parameter<int>("publish.imu.rate", 100);
+    this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
+    this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
+    this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -141,6 +147,27 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.magnetic_field.rate", magnetic_field_rate_);
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
+
+    this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
+    if (orientation_covariance_.size() != 9) {
+        RCLCPP_WARN(this->get_logger(),
+            "publish.imu.orientation_covariance must be a 9-element array, using defaults.");
+        orientation_covariance_ = default_orientation_covariance_;
+    }
+
+    this->get_parameter("publish.imu.gyrometer_covariance", gyrometer_covariance_);
+    if (gyrometer_covariance_.size() != 9) {
+        RCLCPP_WARN(this->get_logger(),
+            "publish.imu.gyrometer_covariance must be a 9-element array, using defaults.");
+        gyrometer_covariance_ = default_gyrometer_covariance_;
+    }
+
+    this->get_parameter("publish.imu.linear_covariance", linear_covariance_);
+    if (linear_covariance_.size() != 9) {
+        RCLCPP_WARN(this->get_logger(),
+            "publish.imu.linear_covariance must be a 9-element array, using defaults.");
+        linear_covariance_ = default_linear_covariance_;
+    }
 }
 
 /**
@@ -189,7 +216,17 @@ void BNO08xROS::init_sensor() {
         RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
         throw std::runtime_error("No sensor reports enabled");
     }
-}   
+}
+
+void BNO08xROS::init_imu_covariance()
+{
+    std::copy(orientation_covariance_.begin(), orientation_covariance_.end(),
+              imu_msg_.orientation_covariance.begin());
+    std::copy(gyrometer_covariance_.begin(), gyrometer_covariance_.end(),
+              imu_msg_.angular_velocity_covariance.begin());
+    std::copy(linear_covariance_.begin(), linear_covariance_.end(),
+              imu_msg_.linear_acceleration_covariance.begin());
+}
 
 /**
  * @brief Callback function for sensor events
