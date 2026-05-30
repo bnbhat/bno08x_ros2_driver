@@ -4,7 +4,7 @@ bno08x_driver:
     frame_id: "bno085"  # The frame_id to use for the sensor data
 
     # Communication Interface
-    # Select the communication interface to use 
+    # Select the communication interface to use
     # (only one interface can be enabled at a time)
     # This requires a hardware change to the board
     # (see documentation for more information)
@@ -14,10 +14,18 @@ bno08x_driver:
       address: "0x4A"
 
     publish:
-      magnetic_field: 
+      magnetic_field:
         enabled: true
         rate: 100   # max 100 Hz
       imu:
         enabled: true
-        rate: 100   # max 400 Hz 
-                    # (anythihng above 100Hz depends on your hardware)
+        rate: 100   # max 400 Hz (anything above 100Hz depends on your hardware)
+        orientation_covariance: [3.73e-3, 0.0, 0.0,
+                                 0.0, 3.73e-3, 0.0,
+                                 0.0, 0.0, 3.73e-3]
+        gyrometer_covariance:   [2.93e-3, 0.0, 0.0,
+                                 0.0, 2.93e-3, 0.0,
+                                 0.0, 0.0, 2.93e-3]
+        linear_covariance:      [0.1225, 0.0, 0.0,
+                                 0.0, 0.1225, 0.0,
+                                 0.0, 0.0, 0.1225]
