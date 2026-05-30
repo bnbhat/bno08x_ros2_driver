@@ -62,8 +62,6 @@ TEST_F(WatchdogTest, ResetPreventsCallback) {
     EXPECT_FALSE(callback_called_);
 }
 
-// ... existing tests ...
-
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
