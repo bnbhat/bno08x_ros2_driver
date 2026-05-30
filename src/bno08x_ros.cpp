@@ -37,19 +37,26 @@ BNO08xROS::BNO08xROS()
         RCLCPP_INFO(this->get_logger(), "Magnetic Field Rate: %d", magnetic_field_rate_);
     }
 
-    // Poll the sensor at the rate of the fastest sensor
-    this->imu_received_flag_ = 0;
-    if(this->imu_rate_ < this->magnetic_field_rate_){
-        this->poll_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(1000/this->magnetic_field_rate_), // Hz to ms
-            std::bind(&BNO08xROS::poll_timer_callback, this)
-        );
-    } else {
-        this->poll_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(1000/this->imu_rate_), // Hz to ms
-            std::bind(&BNO08xROS::poll_timer_callback, this)
-        );
+    if (publish_game_rv_) {
+        // angular_velocity and linear_acceleration are not provided on this topic.
+        // A covariance[0] = -1 signals "field not populated" per REP-145.
+        game_rv_msg_.angular_velocity_covariance[0] = -1;
+        game_rv_msg_.linear_acceleration_covariance[0] = -1;
+        game_rv_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/game_rotation", 10);
+        RCLCPP_INFO(this->get_logger(), "Game Rotation Vector Publisher created");
+        RCLCPP_INFO(this->get_logger(), "Game Rotation Vector Rate: %d", game_rv_rate_);
     }
+
+    // Poll at the fastest rate of all enabled sensor reports.
+    this->imu_received_flag_ = 0;
+    int poll_rate_hz = 0;
+    if (publish_imu_)            poll_rate_hz = std::max(poll_rate_hz, imu_rate_);
+    if (publish_magnetic_field_) poll_rate_hz = std::max(poll_rate_hz, magnetic_field_rate_);
+    if (publish_game_rv_)        poll_rate_hz = std::max(poll_rate_hz, game_rv_rate_);
+    this->poll_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(1000 / poll_rate_hz),
+        std::bind(&BNO08xROS::poll_timer_callback, this)
+    );
 
     // Initialize the watchdog timer
     auto timeout = std::chrono::milliseconds(2000);
@@ -137,6 +144,8 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<bool>("publish.imu.enabled", true);
     this->declare_parameter<int>("publish.imu.rate", 100);
     this->declare_parameter<bool>("publish.imu.linear_acceleration_compensated", true);
+    this->declare_parameter<bool>("publish.game_rotation_vector.enabled", false);
+    this->declare_parameter<int>("publish.game_rotation_vector.rate", 100);
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
@@ -156,6 +165,8 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
     this->get_parameter("publish.imu.linear_acceleration_compensated", linear_acceleration_compensated_);
+    this->get_parameter("publish.game_rotation_vector.enabled", publish_game_rv_);
+    this->get_parameter("publish.game_rotation_vector.rate", game_rv_rate_);
 
     this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
     if (orientation_covariance_.size() != 9) {
@@ -223,7 +234,13 @@ void BNO08xROS::init_sensor() {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable gyroscope sensor");
         }
     }
-    if (!(publish_imu_ || publish_magnetic_field_)) {
+    if (publish_game_rv_) {
+        if(!this->bno08x_->enable_report(SH2_GAME_ROTATION_VECTOR,
+                                         1000000/this->game_rv_rate_)){            // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable game rotation vector sensor");
+        }
+    }
+    if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_)) {
         RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
         throw std::runtime_error("No sensor reports enabled");
     }
@@ -307,6 +324,21 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			gyro_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
+		case SH2_GAME_ROTATION_VECTOR: {
+			if (!publish_game_rv_) break;
+			double ov = accuracy_to_variance(sensor_value->status & SH2_STATUS_ACCURACY_MASK);
+			game_rv_msg_.orientation.x = sensor_value->un.gameRotationVector.i;
+			game_rv_msg_.orientation.y = sensor_value->un.gameRotationVector.j;
+			game_rv_msg_.orientation.z = sensor_value->un.gameRotationVector.k;
+			game_rv_msg_.orientation.w = sensor_value->un.gameRotationVector.real;
+			game_rv_msg_.orientation_covariance[0] = ov;
+			game_rv_msg_.orientation_covariance[4] = ov;
+			game_rv_msg_.orientation_covariance[8] = ov;
+			game_rv_msg_.header.frame_id = frame_id_;
+			game_rv_msg_.header.stamp = this->get_clock()->now();
+			game_rv_publisher_->publish(game_rv_msg_);
+			break;
+		}
 		default:
 			break;
 	}

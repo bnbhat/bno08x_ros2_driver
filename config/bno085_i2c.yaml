@@ -17,6 +17,9 @@ bno08x_driver:
       magnetic_field:
         enabled: true
         rate: 100   # max 100 Hz
+      game_rotation_vector:
+        enabled: false  # set true to publish /imu/game_rotation (accel + gyro only, no magnetometer)
+        rate: 100
       imu:
         enabled: true
         rate: 100   # max 400 Hz (anything above 100Hz depends on your hardware)
