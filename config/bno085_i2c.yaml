@@ -16,6 +16,12 @@ bno08x_driver:
     calibration:
       auto_save: true   # persist learned calibration to flash on every calibration update
 
+    tare:
+      # Quaternion [x, y, z, w] used by /imu/set_reorientation.
+      # Set this parameter then call the service to apply a fixed reorientation.
+      # Identity (no rotation) by default.
+      quaternion: [0.0, 0.0, 0.0, 1.0]
+
     publish:
       magnetic_field:
         enabled: true

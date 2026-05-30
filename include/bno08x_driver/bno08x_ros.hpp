@@ -34,6 +34,9 @@ private:
     void clear_tare_callback(
         const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
         std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+    void set_reorientation_callback(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     // ROS Publishers
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
@@ -59,6 +62,7 @@ private:
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_cal_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr tare_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr clear_tare_service_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_reorientation_service_;
 
     // Parameters
     std::string frame_id_;

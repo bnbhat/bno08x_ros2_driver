@@ -233,6 +233,10 @@ bool BNO08x::clear_tare(void) {
   return sh2_clearTare() == SH2_OK;
 }
 
+bool BNO08x::set_reorientation(sh2_Quaternion_t* orientation) {
+  return sh2_setReorientation(orientation) == SH2_OK;
+}
+
 bool BNO08x::enable_report(sh2_SensorId_t sensorId,
                                    uint32_t interval_us) {
   static sh2_SensorConfig_t config;

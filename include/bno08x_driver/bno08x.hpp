@@ -38,6 +38,7 @@ public:
   bool tare(uint8_t axes = SH2_TARE_X | SH2_TARE_Y | SH2_TARE_Z,
             sh2_TareBasis_t basis = SH2_TARE_BASIS_ROTATION_VECTOR);
   bool clear_tare(void);
+  bool set_reorientation(sh2_Quaternion_t* orientation);
   sh2_ProductIds_t prodIds; ///< The product IDs returned by the sensor
 
 protected:

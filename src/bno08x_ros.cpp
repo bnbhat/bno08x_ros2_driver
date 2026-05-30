@@ -84,6 +84,11 @@ BNO08xROS::BNO08xROS()
         std::bind(&BNO08xROS::clear_tare_callback, this,
                   std::placeholders::_1, std::placeholders::_2));
 
+    set_reorientation_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/imu/set_reorientation",
+        std::bind(&BNO08xROS::set_reorientation_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
+
     RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
@@ -166,6 +171,8 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
 
     this->declare_parameter<bool>("calibration.auto_save", true);
+    // Identity quaternion [x, y, z, w] — no rotation. Set before calling /imu/set_reorientation.
+    this->declare_parameter<std::vector<double>>("tare.quaternion", {0.0, 0.0, 0.0, 1.0});
 
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
@@ -435,6 +442,48 @@ void BNO08xROS::clear_tare_callback(
         RCLCPP_INFO(this->get_logger(), "Tare cleared successfully.");
     } else {
         RCLCPP_ERROR(this->get_logger(), "Failed to clear tare.");
+    }
+}
+
+void BNO08xROS::set_reorientation_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    std::vector<double> quat;
+    this->get_parameter("tare.quaternion", quat);
+
+    if (quat.size() != 4) {
+        response->success = false;
+        response->message = "tare.quaternion must be a 4-element array [x, y, z, w].";
+        RCLCPP_ERROR(this->get_logger(), "%s", response->message.c_str());
+        return;
+    }
+
+    double norm = std::sqrt(quat[0]*quat[0] + quat[1]*quat[1] +
+                            quat[2]*quat[2] + quat[3]*quat[3]);
+    if (norm < 1e-9) {
+        response->success = false;
+        response->message = "tare.quaternion has zero norm, cannot normalize.";
+        RCLCPP_ERROR(this->get_logger(), "%s", response->message.c_str());
+        return;
+    }
+
+    sh2_Quaternion_t orientation;
+    orientation.x = quat[0] / norm;
+    orientation.y = quat[1] / norm;
+    orientation.z = quat[2] / norm;
+    orientation.w = quat[3] / norm;
+
+    std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    bool ok = bno08x_->set_reorientation(&orientation);
+    response->success = ok;
+    response->message = ok ? "Reorientation applied." : "Failed to apply reorientation.";
+    if (ok) {
+        RCLCPP_INFO(this->get_logger(),
+            "Reorientation applied: [x=%.4f y=%.4f z=%.4f w=%.4f]",
+            orientation.x, orientation.y, orientation.z, orientation.w);
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to apply reorientation.");
     }
 }
 
