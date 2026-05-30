@@ -69,6 +69,11 @@ BNO08xROS::BNO08xROS()
     });
     watchdog_->start();
 
+    save_cal_service_ = this->create_service<std_srvs::srv::Trigger>(
+        "/imu/save_calibration",
+        std::bind(&BNO08xROS::save_calibration_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
+
     RCLCPP_INFO(this->get_logger(), "BNO08X ROS Node started.");
 }
 
@@ -150,6 +155,8 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
 
+    this->declare_parameter<bool>("calibration.auto_save", true);
+
     this->declare_parameter<bool>("i2c.enabled", true);
     this->declare_parameter<std::string>("i2c.bus", "/dev/i2c-7");
     this->declare_parameter<std::string>("i2c.address", "0x4A");
@@ -165,6 +172,7 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
     this->get_parameter("publish.imu.linear_acceleration_compensated", linear_acceleration_compensated_);
+    this->get_parameter("calibration.auto_save", auto_save_dcd_);
     this->get_parameter("publish.game_rotation_vector.enabled", publish_game_rv_);
     this->get_parameter("publish.game_rotation_vector.rate", game_rv_rate_);
 
@@ -210,6 +218,12 @@ void BNO08xROS::init_sensor() {
     if (!bno08x_->begin()) {
         RCLCPP_ERROR(this->get_logger(), "Failed to initialize BNO08X sensor");
         throw std::runtime_error("BNO08x initialization failed");
+    }
+
+    if (auto_save_dcd_) {
+        if (!bno08x_->set_dcd_auto_save(true)) {
+            RCLCPP_WARN(this->get_logger(), "Failed to enable DCD auto-save");
+        }
     }
 
     if (publish_magnetic_field_) {
@@ -380,4 +394,20 @@ void BNO08xROS::reset() {
     std::lock_guard<std::mutex> lock(bno08x_mutex_);
     delete bno08x_;
     this->init_sensor();
+}
+
+void BNO08xROS::save_calibration_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> /*request*/,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    bool ok = bno08x_->save_dcd();
+    response->success = ok;
+    response->message = ok ? "Calibration data saved to flash."
+                           : "Failed to save calibration data.";
+    if (ok) {
+        RCLCPP_INFO(this->get_logger(), "Calibration data saved to flash.");
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to save calibration data.");
+    }
 }

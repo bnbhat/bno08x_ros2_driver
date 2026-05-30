@@ -33,6 +33,8 @@ public:
   bool was_reset(void);
   bool enable_report(sh2_SensorId_t sensor, uint32_t interval_us = 10000);
   void poll(void);
+  bool save_dcd(void);
+  bool set_dcd_auto_save(bool enabled);
   sh2_ProductIds_t prodIds; ///< The product IDs returned by the sensor
 
 protected:

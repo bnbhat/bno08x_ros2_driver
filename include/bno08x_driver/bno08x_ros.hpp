@@ -6,6 +6,7 @@
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 #include "bno08x_driver/bno08x.hpp"
 #include "bno08x_driver/watchdog.hpp"
@@ -24,6 +25,9 @@ private:
     void init_imu_covariance();
     void poll_timer_callback();
     void reset();
+    void save_calibration_callback(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     // ROS Publishers
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
@@ -45,6 +49,9 @@ private:
     // Watchdog
     Watchdog* watchdog_;
 
+    // Services
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_cal_service_;
+
     // Parameters
     std::string frame_id_;
     bool publish_magnetic_field_;
@@ -58,6 +65,7 @@ private:
     bool publish_acceleration_;
     bool publish_angular_velocity_;
     bool linear_acceleration_compensated_;
+    bool auto_save_dcd_;
 
     // Per-sensor accuracy status (bits 1-0 of sh2_SensorValue_t.status, 0=unreliable … 3=high)
     uint8_t orientation_accuracy_{0};

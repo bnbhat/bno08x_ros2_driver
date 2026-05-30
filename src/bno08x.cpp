@@ -217,6 +217,14 @@ void BNO08x::poll() {
  * microseconds
  * @return true: success false: failure
  */
+bool BNO08x::save_dcd(void) {
+  return sh2_saveDcdNow() == SH2_OK;
+}
+
+bool BNO08x::set_dcd_auto_save(bool enabled) {
+  return sh2_setDcdAutoSave(enabled) == SH2_OK;
+}
+
 bool BNO08x::enable_report(sh2_SensorId_t sensorId,
                                    uint32_t interval_us) {
   static sh2_SensorConfig_t config;
