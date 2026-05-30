@@ -65,9 +65,16 @@ BNO08xROS::BNO08xROS()
     watchdog_->set_check_interval(timeout / 2); 
     watchdog_->set_callback([this]() {
         RCLCPP_ERROR(this->get_logger(), "Watchdog timeout! No data received from sensor. Resetting...");
+        watchdog_fire_count_++;
         this->reset();
     });
     watchdog_->start();
+
+    diag_publisher_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
+        "/diagnostics", 10);
+    diag_timer_ = this->create_wall_timer(
+        std::chrono::seconds(1),
+        std::bind(&BNO08xROS::publish_diagnostics, this));
 
     save_cal_service_ = this->create_service<std_srvs::srv::Trigger>(
         "/imu/save_calibration",
@@ -320,6 +327,7 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->mag_msg_.header.frame_id = this->frame_id_;
 			this->mag_msg_.header.stamp.sec = this->get_clock()->now().seconds();
 			this->mag_msg_.header.stamp.nanosec = this->get_clock()->now().nanoseconds();
+			mag_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			// IMU will still return infrequent magnetic field reports even if the report
 			// was not enabled, so check it was enabled before publishing.
 			if (publish_magnetic_field_) {
@@ -409,6 +417,7 @@ void BNO08xROS::poll_timer_callback() {
 
 void BNO08xROS::reset() {
     std::lock_guard<std::mutex> lock(bno08x_mutex_);
+    reset_count_++;
     delete bno08x_;
     this->init_sensor();
 }
@@ -443,6 +452,94 @@ void BNO08xROS::clear_tare_callback(
     } else {
         RCLCPP_ERROR(this->get_logger(), "Failed to clear tare.");
     }
+}
+
+void BNO08xROS::publish_diagnostics()
+{
+    using DS  = diagnostic_msgs::msg::DiagnosticStatus;
+    using KV  = diagnostic_msgs::msg::KeyValue;
+
+    auto make_kv = [](const std::string& key, const std::string& val) {
+        KV kv; kv.key = key; kv.value = val; return kv;
+    };
+
+    auto accuracy_label = [](uint8_t acc) -> std::string {
+        switch (acc) {
+            case SH2_ACCURACY_HIGH:       return "HIGH";
+            case SH2_ACCURACY_MEDIUM:     return "MEDIUM";
+            case SH2_ACCURACY_LOW:        return "LOW";
+            case SH2_ACCURACY_UNRELIABLE:
+            default:                      return "UNRELIABLE";
+        }
+    };
+
+    auto accuracy_level = [](uint8_t acc) -> uint8_t {
+        if (acc >= SH2_ACCURACY_MEDIUM) return DS::OK;
+        if (acc == SH2_ACCURACY_LOW)    return DS::WARN;
+        return DS::ERROR;
+    };
+
+    // Snapshot accuracy values and product ID under the mutex.
+    uint8_t o_acc, g_acc, a_acc, m_acc;
+    std::string part_number, fw_version;
+    {
+        std::lock_guard<std::mutex> lock(bno08x_mutex_);
+        o_acc = orientation_accuracy_;
+        g_acc = gyro_accuracy_;
+        a_acc = accel_accuracy_;
+        m_acc = mag_accuracy_;
+        if (bno08x_ && bno08x_->prodIds.numEntries > 0) {
+            const auto& e = bno08x_->prodIds.entry[0];
+            part_number = std::to_string(e.swPartNumber);
+            fw_version  = std::to_string(e.swVersionMajor) + "." +
+                          std::to_string(e.swVersionMinor) + "." +
+                          std::to_string(e.swVersionPatch);
+        }
+    }
+
+    // ── Calibration status ────────────────────────────────────────────────────
+    DS cal;
+    cal.name        = "BNO08x/Calibration";
+    cal.hardware_id = "bno08x";
+    uint8_t worst   = std::min({o_acc, g_acc, a_acc, m_acc});
+    cal.level       = accuracy_level(worst);
+    cal.message     = "Worst accuracy: " + accuracy_label(worst);
+    cal.values      = {
+        make_kv("orientation",   accuracy_label(o_acc)),
+        make_kv("gyroscope",     accuracy_label(g_acc)),
+        make_kv("accelerometer", accuracy_label(a_acc)),
+        make_kv("magnetometer",  accuracy_label(m_acc)),
+    };
+
+    // ── Driver health ─────────────────────────────────────────────────────────
+    DS driver;
+    driver.name        = "BNO08x/Driver";
+    driver.hardware_id = "bno08x";
+    uint32_t wdc       = watchdog_fire_count_.load();
+    uint32_t rc        = reset_count_.load();
+    driver.level       = (wdc > 0) ? DS::WARN : DS::OK;
+    driver.message     = (wdc == 0) ? "OK" : "Watchdog has fired";
+    driver.values      = {
+        make_kv("watchdog_fires", std::to_string(wdc)),
+        make_kv("sensor_resets",  std::to_string(rc)),
+    };
+
+    // ── Sensor info ───────────────────────────────────────────────────────────
+    DS info;
+    info.name        = "BNO08x/Sensor";
+    info.hardware_id = "bno08x";
+    info.level       = DS::OK;
+    info.message     = "Sensor information";
+    info.values      = {
+        make_kv("part_number",      part_number),
+        make_kv("firmware_version", fw_version),
+    };
+
+    diagnostic_msgs::msg::DiagnosticArray diag_array;
+    diag_array.header.stamp    = this->get_clock()->now();
+    diag_array.header.frame_id = frame_id_;
+    diag_array.status          = {cal, driver, info};
+    diag_publisher_->publish(diag_array);
 }
 
 void BNO08xROS::set_reorientation_callback(

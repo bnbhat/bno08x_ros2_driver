@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/logging.hpp>
@@ -7,6 +8,7 @@
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
 
 #include "bno08x_driver/bno08x.hpp"
 #include "bno08x_driver/watchdog.hpp"
@@ -25,6 +27,7 @@ private:
     void init_imu_covariance();
     void poll_timer_callback();
     void reset();
+    void publish_diagnostics();
     void save_calibration_callback(
         const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
         std::shared_ptr<std_srvs::srv::Trigger::Response> response);
@@ -42,13 +45,15 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr mag_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr game_rv_publisher_;
+    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_publisher_;
     sensor_msgs::msg::Imu imu_msg_;
     sensor_msgs::msg::MagneticField mag_msg_;
     sensor_msgs::msg::Imu game_rv_msg_;
     uint8_t imu_received_flag_;
 
-    // ROS Timer
+    // ROS Timers
     rclcpp::TimerBase::SharedPtr poll_timer_;
+    rclcpp::TimerBase::SharedPtr diag_timer_;
 
     // BNO08X Sensor Interface
     BNO08x* bno08x_;
@@ -83,6 +88,11 @@ private:
     uint8_t orientation_accuracy_{0};
     uint8_t gyro_accuracy_{0};
     uint8_t accel_accuracy_{0};
+    uint8_t mag_accuracy_{0};
+
+    // Counters written from multiple threads — use atomics to avoid data races.
+    std::atomic<uint32_t> watchdog_fire_count_{0};
+    std::atomic<uint32_t> reset_count_{0};
 
     static double accuracy_to_variance(uint8_t accuracy);
 
