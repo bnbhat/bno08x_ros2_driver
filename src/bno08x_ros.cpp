@@ -129,6 +129,7 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.magnetic_field.rate", 100);
     this->declare_parameter<bool>("publish.imu.enabled", true);
     this->declare_parameter<int>("publish.imu.rate", 100);
+    this->declare_parameter<bool>("publish.imu.linear_acceleration_compensated", true);
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
@@ -147,6 +148,7 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.magnetic_field.rate", magnetic_field_rate_);
     this->get_parameter("publish.imu.enabled", publish_imu_);
     this->get_parameter("publish.imu.rate", imu_rate_);
+    this->get_parameter("publish.imu.linear_acceleration_compensated", linear_acceleration_compensated_);
 
     this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
     if (orientation_covariance_.size() != 9) {
@@ -203,7 +205,9 @@ void BNO08xROS::init_sensor() {
                                          1000000/this->imu_rate_)){              // Hz to us
             RCLCPP_ERROR(this->get_logger(), "Failed to enable rotation vector sensor");
         }
-        if(!this->bno08x_->enable_report(SH2_ACCELEROMETER,
+        sh2_SensorId_t accel_report = linear_acceleration_compensated_ ?
+                                      SH2_LINEAR_ACCELERATION : SH2_ACCELEROMETER;
+        if(!this->bno08x_->enable_report(accel_report,
                                          1000000/this->imu_rate_)){              // Hz to us
             RCLCPP_ERROR(this->get_logger(), "Failed to enable accelerometer sensor");
         }
@@ -263,6 +267,12 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->imu_msg_.linear_acceleration.x = sensor_value->un.accelerometer.x;
 			this->imu_msg_.linear_acceleration.y = sensor_value->un.accelerometer.y;
 			this->imu_msg_.linear_acceleration.z = sensor_value->un.accelerometer.z;
+			imu_received_flag_ |= ACCELEROMETER_RECEIVED;
+			break;
+		case SH2_LINEAR_ACCELERATION:
+			this->imu_msg_.linear_acceleration.x = sensor_value->un.linearAcceleration.x;
+			this->imu_msg_.linear_acceleration.y = sensor_value->un.linearAcceleration.y;
+			this->imu_msg_.linear_acceleration.z = sensor_value->un.linearAcceleration.z;
 			imu_received_flag_ |= ACCELEROMETER_RECEIVED;
 			break;
 		case SH2_GYROSCOPE_CALIBRATED:

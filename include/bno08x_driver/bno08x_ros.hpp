@@ -53,6 +53,7 @@ private:
     bool publish_orientation_;
     bool publish_acceleration_;
     bool publish_angular_velocity_;
+    bool linear_acceleration_compensated_;
 
     std::vector<double> orientation_covariance_;
     std::vector<double> gyrometer_covariance_;

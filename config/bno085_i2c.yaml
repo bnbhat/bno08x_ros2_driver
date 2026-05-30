@@ -20,6 +20,7 @@ bno08x_driver:
       imu:
         enabled: true
         rate: 100   # max 400 Hz (anything above 100Hz depends on your hardware)
+        linear_acceleration_compensated: true  # true: gravity-compensated (SH2_LINEAR_ACCELERATION), false: raw including gravity (SH2_ACCELEROMETER)
         orientation_covariance: [3.73e-3, 0.0, 0.0,
                                  0.0, 3.73e-3, 0.0,
                                  0.0, 0.0, 3.73e-3]
