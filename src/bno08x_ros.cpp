@@ -9,6 +9,13 @@ constexpr uint8_t ROTATION_VECTOR_RECEIVED = 0x01;
 constexpr uint8_t ACCELEROMETER_RECEIVED   = 0x02;
 constexpr uint8_t GYROSCOPE_RECEIVED       = 0x04;
 
+// SH-2 report status field: bits 1-0 carry the calibration accuracy level.
+constexpr uint8_t SH2_STATUS_ACCURACY_MASK = 0x03;
+constexpr uint8_t SH2_ACCURACY_UNRELIABLE  = 0;
+constexpr uint8_t SH2_ACCURACY_LOW         = 1;
+constexpr uint8_t SH2_ACCURACY_MEDIUM      = 2;
+constexpr uint8_t SH2_ACCURACY_HIGH        = 3;
+
 BNO08xROS::BNO08xROS()
     : Node("bno08x_ros")
 {  
@@ -222,6 +229,21 @@ void BNO08xROS::init_sensor() {
     }
 }
 
+// Maps the SH-2 calibration accuracy level (SH2_ACCURACY_UNRELIABLE … SH2_ACCURACY_HIGH)
+// to a diagonal variance value for sensor_msgs/Imu covariance matrices.
+// Each step spans two decades so that robot_localization weights a fully calibrated
+// reading ~1000x more heavily than an unreliable one.
+double BNO08xROS::accuracy_to_variance(uint8_t accuracy)
+{
+    switch (accuracy) {
+        case SH2_ACCURACY_HIGH:      return 1e-4;
+        case SH2_ACCURACY_MEDIUM:    return 1e-3;
+        case SH2_ACCURACY_LOW:       return 1e-2;
+        case SH2_ACCURACY_UNRELIABLE:
+        default:                     return 1e-1;
+    }
+}
+
 void BNO08xROS::init_imu_covariance()
 {
     std::copy(orientation_covariance_.begin(), orientation_covariance_.end(),
@@ -261,24 +283,28 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->imu_msg_.orientation.y = sensor_value->un.rotationVector.j;
 			this->imu_msg_.orientation.z = sensor_value->un.rotationVector.k;
 			this->imu_msg_.orientation.w = sensor_value->un.rotationVector.real;
+			orientation_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= ROTATION_VECTOR_RECEIVED;
 			break;
 		case SH2_ACCELEROMETER:
 			this->imu_msg_.linear_acceleration.x = sensor_value->un.accelerometer.x;
 			this->imu_msg_.linear_acceleration.y = sensor_value->un.accelerometer.y;
 			this->imu_msg_.linear_acceleration.z = sensor_value->un.accelerometer.z;
+			accel_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= ACCELEROMETER_RECEIVED;
 			break;
 		case SH2_LINEAR_ACCELERATION:
 			this->imu_msg_.linear_acceleration.x = sensor_value->un.linearAcceleration.x;
 			this->imu_msg_.linear_acceleration.y = sensor_value->un.linearAcceleration.y;
 			this->imu_msg_.linear_acceleration.z = sensor_value->un.linearAcceleration.z;
+			accel_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= ACCELEROMETER_RECEIVED;
 			break;
 		case SH2_GYROSCOPE_CALIBRATED:
 			this->imu_msg_.angular_velocity.x = sensor_value->un.gyroscope.x;
 			this->imu_msg_.angular_velocity.y = sensor_value->un.gyroscope.y;
 			this->imu_msg_.angular_velocity.z = sensor_value->un.gyroscope.z;
+			gyro_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
 		default:
@@ -286,6 +312,15 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	}
 
 	if(imu_received_flag_ == (ROTATION_VECTOR_RECEIVED | ACCELEROMETER_RECEIVED | GYROSCOPE_RECEIVED)){
+		// Update covariance diagonals from the latest per-sensor accuracy status.
+		// Off-diagonal elements are left at their YAML-configured values (normally 0).
+		double ov = accuracy_to_variance(orientation_accuracy_);
+		double gv = accuracy_to_variance(gyro_accuracy_);
+		double av = accuracy_to_variance(accel_accuracy_);
+		imu_msg_.orientation_covariance[0] = imu_msg_.orientation_covariance[4] = imu_msg_.orientation_covariance[8] = ov;
+		imu_msg_.angular_velocity_covariance[0] = imu_msg_.angular_velocity_covariance[4] = imu_msg_.angular_velocity_covariance[8] = gv;
+		imu_msg_.linear_acceleration_covariance[0] = imu_msg_.linear_acceleration_covariance[4] = imu_msg_.linear_acceleration_covariance[8] = av;
+
 		this->imu_msg_.header.frame_id = this->frame_id_;
 		this->imu_msg_.header.stamp.sec = this->get_clock()->now().seconds();
 		this->imu_msg_.header.stamp.nanosec = this->get_clock()->now().nanoseconds();

@@ -55,6 +55,13 @@ private:
     bool publish_angular_velocity_;
     bool linear_acceleration_compensated_;
 
+    // Per-sensor accuracy status (bits 1-0 of sh2_SensorValue_t.status, 0=unreliable … 3=high)
+    uint8_t orientation_accuracy_{0};
+    uint8_t gyro_accuracy_{0};
+    uint8_t accel_accuracy_{0};
+
+    static double accuracy_to_variance(uint8_t accuracy);
+
     std::vector<double> orientation_covariance_;
     std::vector<double> gyrometer_covariance_;
     std::vector<double> linear_covariance_;
