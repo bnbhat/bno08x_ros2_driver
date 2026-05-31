@@ -1,16 +1,14 @@
 #pragma once
 
 #include <mutex>
-#include <chrono>
-#include <functional>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/logging.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
-#include <rcl_interfaces/msg/parameter_descriptor.hpp>
+
 #include "bno08x_driver/bno08x.hpp"
-#include "bno08x_driver/logger.h"
 #include "bno08x_driver/watchdog.hpp"
-#include "sh2/sh2.h"
 
 class BNO08xROS : public rclcpp::Node
 {
@@ -23,6 +21,7 @@ private:
     void init_comms();
     void init_parameters();
     void init_sensor();
+    void init_imu_covariance();
     void poll_timer_callback();
     void reset();
 
@@ -54,5 +53,28 @@ private:
     bool publish_orientation_;
     bool publish_acceleration_;
     bool publish_angular_velocity_;
-};
 
+    std::vector<double> orientation_covariance_;
+    std::vector<double> gyrometer_covariance_;
+    std::vector<double> linear_covariance_;
+
+    // Default covariance values derived from datasheet noise figures.
+    // Orientation: 3.5 deg RMS -> variance in rad^2
+    const std::vector<double> default_orientation_covariance_ = {
+        pow(3.5 * M_PI / 180, 2), 0, 0,
+        0, pow(3.5 * M_PI / 180, 2), 0,
+        0, 0, pow(3.5 * M_PI / 180, 2)
+    };
+    // Gyroscope: 3.1 deg/s RMS -> variance in (rad/s)^2
+    const std::vector<double> default_gyrometer_covariance_ = {
+        pow(3.1 * M_PI / 180, 2), 0, 0,
+        0, pow(3.1 * M_PI / 180, 2), 0,
+        0, 0, pow(3.1 * M_PI / 180, 2)
+    };
+    // Accelerometer: 0.35 m/s^2 RMS -> variance in (m/s^2)^2
+    const std::vector<double> default_linear_covariance_ = {
+        pow(0.35, 2), 0, 0,
+        0, pow(0.35, 2), 0,
+        0, 0, pow(0.35, 2)
+    };
+};
