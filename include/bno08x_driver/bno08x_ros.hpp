@@ -85,10 +85,16 @@ private:
     bool auto_save_dcd_;
 
     // Per-sensor accuracy status (bits 1-0 of sh2_SensorValue_t.status, 0=unreliable … 3=high)
+    // Used for diagnostics labels and for sensors that have no dedicated accuracy field.
     uint8_t orientation_accuracy_{0};
     uint8_t gyro_accuracy_{0};
     uint8_t accel_accuracy_{0};
     uint8_t mag_accuracy_{0};
+
+    // SH2_ROTATION_VECTOR provides a continuous 1-sigma heading accuracy estimate in radians.
+    // Squaring it gives a physically grounded orientation variance; used instead of the
+    // 4-level status mapping which is too coarse for EKF weighting.
+    float orientation_accuracy_rad_{0.0f};
 
     // Counters written from multiple threads — use atomics to avoid data races.
     std::atomic<uint32_t> watchdog_fire_count_{0};

@@ -339,7 +339,8 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			this->imu_msg_.orientation.y = sensor_value->un.rotationVector.j;
 			this->imu_msg_.orientation.z = sensor_value->un.rotationVector.k;
 			this->imu_msg_.orientation.w = sensor_value->un.rotationVector.real;
-			orientation_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
+			orientation_accuracy_     = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
+			orientation_accuracy_rad_ = sensor_value->un.rotationVector.accuracy;
 			imu_received_flag_ |= ROTATION_VECTOR_RECEIVED;
 			break;
 		case SH2_ACCELEROMETER:
@@ -383,9 +384,13 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 	}
 
 	if(imu_received_flag_ == (ROTATION_VECTOR_RECEIVED | ACCELEROMETER_RECEIVED | GYROSCOPE_RECEIVED)){
-		// Update covariance diagonals from the latest per-sensor accuracy status.
-		// Off-diagonal elements are left at their YAML-configured values (normally 0).
-		double ov = accuracy_to_variance(orientation_accuracy_);
+		// Orientation: use the continuous 1-sigma accuracy field from the rotation vector
+		// report (radians), squaring it to get variance. Fall back to the UNRELIABLE level
+		// when the field is zero (sensor not yet converged, not truly error-free).
+		// Gyro and accel have no dedicated accuracy field — use the 4-level status bits.
+		double ov = (orientation_accuracy_rad_ > 0.0f)
+		            ? static_cast<double>(orientation_accuracy_rad_) * orientation_accuracy_rad_
+		            : accuracy_to_variance(SH2_ACCURACY_UNRELIABLE);
 		double gv = accuracy_to_variance(gyro_accuracy_);
 		double av = accuracy_to_variance(accel_accuracy_);
 		imu_msg_.orientation_covariance[0] = imu_msg_.orientation_covariance[4] = imu_msg_.orientation_covariance[8] = ov;
