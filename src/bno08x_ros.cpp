@@ -60,6 +60,21 @@ BNO08xROS::BNO08xROS()
             "/imu/significant_motion", 10);
         RCLCPP_INFO(this->get_logger(), "Significant Motion Publisher created");
     }
+    if (publish_tap_) {
+        tap_publisher_ = this->create_publisher<std_msgs::msg::Int8>("/imu/tap", 10);
+        RCLCPP_INFO(this->get_logger(), "Tap Detector Publisher created");
+    }
+    if (publish_shake_) {
+        shake_publisher_ = this->create_publisher<std_msgs::msg::Int8>("/imu/shake", 10);
+        RCLCPP_INFO(this->get_logger(), "Shake Detector Publisher created");
+    }
+    if (publish_gyro_uncal_) {
+        gyro_uncal_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(
+            "/imu/gyro_uncalibrated", 10);
+        gyro_bias_publisher_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>(
+            "/imu/gyro_bias", 10);
+        RCLCPP_INFO(this->get_logger(), "Uncalibrated Gyro Publishers created");
+    }
 
     // Poll at the fastest rate of all enabled sensor reports.
     this->imu_received_flag_ = 0;
@@ -191,6 +206,9 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<bool>("publish.geomagnetic_rotation_vector.enabled", false);
     this->declare_parameter<int>("publish.geomagnetic_rotation_vector.rate", 100);
     this->declare_parameter<bool>("publish.significant_motion.enabled", false);
+    this->declare_parameter<bool>("publish.tap.enabled", false);
+    this->declare_parameter<bool>("publish.shake.enabled", false);
+    this->declare_parameter<bool>("publish.gyro_uncalibrated.enabled", false);
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
@@ -220,6 +238,9 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.geomagnetic_rotation_vector.enabled", publish_geo_rv_);
     this->get_parameter("publish.geomagnetic_rotation_vector.rate", geo_rv_rate_);
     this->get_parameter("publish.significant_motion.enabled", publish_sig_motion_);
+    this->get_parameter("publish.tap.enabled", publish_tap_);
+    this->get_parameter("publish.shake.enabled", publish_shake_);
+    this->get_parameter("publish.gyro_uncalibrated.enabled", publish_gyro_uncal_);
 
     this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
     if (orientation_covariance_.size() != 9) {
@@ -311,8 +332,25 @@ void BNO08xROS::init_sensor() {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable significant motion sensor");
         }
     }
+    if (publish_tap_) {
+        if(!this->bno08x_->enable_report(SH2_TAP_DETECTOR, 0)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable tap detector");
+        }
+    }
+    if (publish_shake_) {
+        if(!this->bno08x_->enable_report(SH2_SHAKE_DETECTOR, 0)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable shake detector");
+        }
+    }
+    if (publish_gyro_uncal_) {
+        if(!this->bno08x_->enable_report(SH2_GYROSCOPE_UNCALIBRATED,
+                                         1000000/this->imu_rate_)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable uncalibrated gyroscope");
+        }
+    }
     if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_ ||
-          publish_geo_rv_ || publish_sig_motion_)) {
+          publish_geo_rv_ || publish_sig_motion_ || publish_tap_ ||
+          publish_shake_ || publish_gyro_uncal_)) {
         RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
         throw std::runtime_error("No sensor reports enabled");
     }
@@ -398,6 +436,47 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			gyro_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
+		case SH2_TAP_DETECTOR: {
+			if (!publish_tap_) break;
+			std_msgs::msg::Int8 msg;
+			msg.data = static_cast<int8_t>(sensor_value->un.tapDetector.flags);
+			tap_publisher_->publish(msg);
+			break;
+		}
+		case SH2_SHAKE_DETECTOR: {
+			if (!publish_shake_) break;
+			std_msgs::msg::Int8 msg;
+			msg.data = static_cast<int8_t>(sensor_value->un.shakeDetector.shake & 0x7F);
+			shake_publisher_->publish(msg);
+			break;
+		}
+		case SH2_GYROSCOPE_UNCALIBRATED: {
+			if (!publish_gyro_uncal_) break;
+			auto now = this->get_clock()->now();
+
+			sensor_msgs::msg::Imu uncal_msg;
+			uncal_msg.header.stamp    = now;
+			uncal_msg.header.frame_id = frame_id_;
+			uncal_msg.angular_velocity.x = sensor_value->un.gyroscopeUncal.x;
+			uncal_msg.angular_velocity.y = sensor_value->un.gyroscopeUncal.y;
+			uncal_msg.angular_velocity.z = sensor_value->un.gyroscopeUncal.z;
+			uncal_msg.angular_velocity_covariance[0] =
+			    accuracy_to_variance(sensor_value->status & SH2_STATUS_ACCURACY_MASK);
+			uncal_msg.angular_velocity_covariance[4] = uncal_msg.angular_velocity_covariance[0];
+			uncal_msg.angular_velocity_covariance[8] = uncal_msg.angular_velocity_covariance[0];
+			uncal_msg.orientation_covariance[0]         = -1;
+			uncal_msg.linear_acceleration_covariance[0] = -1;
+			gyro_uncal_publisher_->publish(uncal_msg);
+
+			geometry_msgs::msg::Vector3Stamped bias_msg;
+			bias_msg.header.stamp    = now;
+			bias_msg.header.frame_id = frame_id_;
+			bias_msg.vector.x = sensor_value->un.gyroscopeUncal.biasX;
+			bias_msg.vector.y = sensor_value->un.gyroscopeUncal.biasY;
+			bias_msg.vector.z = sensor_value->un.gyroscopeUncal.biasZ;
+			gyro_bias_publisher_->publish(bias_msg);
+			break;
+		}
 		case SH2_SIGNIFICANT_MOTION: {
 			if (!publish_sig_motion_) break;
 			std_msgs::msg::Header h;

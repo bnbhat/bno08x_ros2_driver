@@ -8,7 +8,9 @@
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_msgs/msg/int8.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <diagnostic_msgs/msg/diagnostic_array.hpp>
 
 #include "bno08x_driver/bno08x.hpp"
@@ -48,6 +50,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr game_rv_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr geo_rv_publisher_;
     rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr sig_motion_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr tap_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr shake_publisher_;
     rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_publisher_;
     sensor_msgs::msg::Imu imu_msg_;
     sensor_msgs::msg::MagneticField mag_msg_;
@@ -85,6 +89,11 @@ private:
     int geo_rv_rate_;
     bool publish_sig_motion_;
     bool rearm_sig_motion_{false};
+    bool publish_tap_;
+    bool publish_shake_;
+    bool publish_gyro_uncal_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr gyro_uncal_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr gyro_bias_publisher_;
 
     bool publish_orientation_;
     bool publish_acceleration_;

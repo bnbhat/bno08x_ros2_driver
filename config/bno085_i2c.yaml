@@ -34,6 +34,12 @@ bno08x_driver:
         rate: 100
       significant_motion:
         enabled: false  # set true to publish /imu/significant_motion on first motion after stillness
+      tap:
+        enabled: false  # set true to publish /imu/tap (std_msgs/Int8 bitmask: axis + direction + double-tap)
+      shake:
+        enabled: false  # set true to publish /imu/shake (std_msgs/Int8 bitmask: axes excited)
+      gyro_uncalibrated:
+        enabled: false  # set true to publish /imu/gyro_uncalibrated and /imu/gyro_bias
       imu:
         enabled: true
         rate: 100   # max 400 Hz (anything above 100Hz depends on your hardware)
