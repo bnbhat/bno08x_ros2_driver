@@ -88,8 +88,24 @@ public:
             return -1;
         }
 
+        // Flush any stale pre-open data before the reset.
         tcflush(uart_fd_, TCIOFLUSH);
-        usleep(100000);  // 100 ms for the sensor to settle after port open
+
+        // Send a SHTP soft-reset command on the executable channel (channel 1).
+        // Packet: length=5 (4 header + 1 payload), channel=1, seq=0, cmd=1 (reset).
+        // This matches what the I2C interface sends and is required because sh2_open()
+        // waits up to 200 ms for EXECUTABLE_DEVICE_RESP_RESET_COMPLETE — which only
+        // arrives after the sensor goes through a reset cycle.
+        uint8_t reset_pkt[] = {5, 0, 1, 0, 1};
+        if (::write(uart_fd_, reset_pkt, sizeof(reset_pkt)) != sizeof(reset_pkt)) {
+            std::cerr << "BNO08x - Warning: soft reset packet may not have been sent" << std::endl;
+        }
+
+        // Wait for the sensor to reboot and emit its advertisement + reset-complete
+        // messages into the UART RX buffer.  The OS UART driver buffers these bytes
+        // until sh2_open() starts calling read().  Sensor boot takes ~90 ms; we use
+        // 300 ms to match the I2C implementation and provide a safe margin.
+        usleep(300000);
 
         return 0;
     }

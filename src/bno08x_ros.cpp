@@ -330,18 +330,22 @@ void BNO08xROS::init_sensor() {
         }
     }
     if (publish_sig_motion_) {
-        // report interval 0 = fire once on next detected motion event
-        if(!this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 0)) {
+        // SH2_SIGNIFICANT_MOTION is a one-shot sensor: interval=0 means OFF per SH-2
+        // spec §5.4.1. Use 1 μs (rounded up to the sensor's minimum period) to arm it.
+        if(!this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 1)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable significant motion sensor");
         }
     }
     if (publish_tap_) {
-        if(!this->bno08x_->enable_report(SH2_TAP_DETECTOR, 0)) {
+        // TAP_DETECTOR is a "special" trigger mode sensor. interval=0 = off.
+        // Use 10 ms — the sensor hub rounds up to its minimum detection period.
+        if(!this->bno08x_->enable_report(SH2_TAP_DETECTOR, 10000)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable tap detector");
         }
     }
     if (publish_shake_) {
-        if(!this->bno08x_->enable_report(SH2_SHAKE_DETECTOR, 0)) {
+        // SHAKE_DETECTOR is a "special/wake-up" mode sensor. Same rule as tap.
+        if(!this->bno08x_->enable_report(SH2_SHAKE_DETECTOR, 10000)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable shake detector");
         }
     }
@@ -564,7 +568,7 @@ void BNO08xROS::poll_timer_callback() {
         this->bno08x_->poll();
         if (rearm_sig_motion_) {
             rearm_sig_motion_ = false;
-            this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 0);
+            this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 1);
         }
     }
 }
