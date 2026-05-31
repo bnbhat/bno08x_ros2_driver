@@ -162,12 +162,14 @@ void BNO08xROS::init_comms() {
     } else if (uart_enabled) {
         RCLCPP_INFO(this->get_logger(), "Communication Interface: UART");
         std::string device;
+        int baudrate;
         this->get_parameter("uart.device", device);
-        try{
-            comm_interface_ = new UARTInterface(device);
+        this->get_parameter("uart.baudrate", baudrate);
+        try {
+            comm_interface_ = new UARTInterface(device, baudrate);
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(this->get_logger(), 
-                    "UART Interface not implemented: %s", e.what());
+            RCLCPP_ERROR(this->get_logger(),
+                    "Failed to create UARTInterface: %s", e.what());
             throw std::runtime_error("UARTInterface creation failed");
         }
     } else if (spi_enabled){
@@ -222,6 +224,7 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<std::string>("i2c.address", "0x4A");
     this->declare_parameter<bool>("uart.enabled", false);
     this->declare_parameter<std::string>("uart.device", "/dev/ttyACM0");
+    this->declare_parameter<int>("uart.baudrate", 3000000);
     this->declare_parameter<bool>("spi.enabled", false);
     this->declare_parameter<std::string>("spi.device", "/dev/spidev0.0");
 

@@ -13,6 +13,11 @@ bno08x_driver:
       bus: "/dev/i2c-7"
       address: "0x4A"
 
+    uart:
+      enabled: false
+      device: "/dev/ttyUSB0"
+      baudrate: 3000000   # common values: 115200, 460800, 921600, 3000000
+
     calibration:
       auto_save: true   # persist learned calibration to flash on every calibration update
 
