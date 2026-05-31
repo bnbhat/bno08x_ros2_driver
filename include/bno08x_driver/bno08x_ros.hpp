@@ -7,6 +7,7 @@
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <std_msgs/msg/header.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <diagnostic_msgs/msg/diagnostic_array.hpp>
 
@@ -46,6 +47,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr mag_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr game_rv_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr geo_rv_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr sig_motion_publisher_;
     rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_publisher_;
     sensor_msgs::msg::Imu imu_msg_;
     sensor_msgs::msg::MagneticField mag_msg_;
@@ -81,6 +83,8 @@ private:
     int game_rv_rate_;
     bool publish_geo_rv_;
     int geo_rv_rate_;
+    bool publish_sig_motion_;
+    bool rearm_sig_motion_{false};
 
     bool publish_orientation_;
     bool publish_acceleration_;

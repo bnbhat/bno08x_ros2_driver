@@ -55,6 +55,12 @@ BNO08xROS::BNO08xROS()
         RCLCPP_INFO(this->get_logger(), "Geomagnetic Rotation Vector Rate: %d", geo_rv_rate_);
     }
 
+    if (publish_sig_motion_) {
+        sig_motion_publisher_ = this->create_publisher<std_msgs::msg::Header>(
+            "/imu/significant_motion", 10);
+        RCLCPP_INFO(this->get_logger(), "Significant Motion Publisher created");
+    }
+
     // Poll at the fastest rate of all enabled sensor reports.
     this->imu_received_flag_ = 0;
     int poll_rate_hz = 0;
@@ -184,6 +190,7 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<int>("publish.game_rotation_vector.rate", 100);
     this->declare_parameter<bool>("publish.geomagnetic_rotation_vector.enabled", false);
     this->declare_parameter<int>("publish.geomagnetic_rotation_vector.rate", 100);
+    this->declare_parameter<bool>("publish.significant_motion.enabled", false);
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
@@ -212,6 +219,7 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("publish.game_rotation_vector.rate", game_rv_rate_);
     this->get_parameter("publish.geomagnetic_rotation_vector.enabled", publish_geo_rv_);
     this->get_parameter("publish.geomagnetic_rotation_vector.rate", geo_rv_rate_);
+    this->get_parameter("publish.significant_motion.enabled", publish_sig_motion_);
 
     this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
     if (orientation_covariance_.size() != 9) {
@@ -297,7 +305,14 @@ void BNO08xROS::init_sensor() {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable geomagnetic rotation vector sensor");
         }
     }
-    if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_ || publish_geo_rv_)) {
+    if (publish_sig_motion_) {
+        // report interval 0 = fire once on next detected motion event
+        if(!this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 0)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable significant motion sensor");
+        }
+    }
+    if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_ ||
+          publish_geo_rv_ || publish_sig_motion_)) {
         RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
         throw std::runtime_error("No sensor reports enabled");
     }
@@ -383,6 +398,18 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			gyro_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
+		case SH2_SIGNIFICANT_MOTION: {
+			if (!publish_sig_motion_) break;
+			std_msgs::msg::Header h;
+			h.stamp    = this->get_clock()->now();
+			h.frame_id = frame_id_;
+			sig_motion_publisher_->publish(h);
+			// Sensor auto-disables after firing. Set flag so poll_timer_callback
+			// re-arms it after poll() returns (cannot call enable_report here —
+			// we are already inside poll() which holds bno08x_mutex_).
+			rearm_sig_motion_ = true;
+			break;
+		}
 		case SH2_GEOMAGNETIC_ROTATION_VECTOR: {
 			if (!publish_geo_rv_) break;
 			float acc = sensor_value->un.geoMagRotationVector.accuracy;
@@ -453,6 +480,10 @@ void BNO08xROS::poll_timer_callback() {
     {
         std::lock_guard<std::mutex> lock(bno08x_mutex_);
         this->bno08x_->poll();
+        if (rearm_sig_motion_) {
+            rearm_sig_motion_ = false;
+            this->bno08x_->enable_report(SH2_SIGNIFICANT_MOTION, 0);
+        }
     }
 }
 

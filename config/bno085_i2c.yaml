@@ -32,6 +32,8 @@ bno08x_driver:
       geomagnetic_rotation_vector:
         enabled: false  # set true to publish /imu/geomagnetic (accel + magnetometer only, no gyro)
         rate: 100
+      significant_motion:
+        enabled: false  # set true to publish /imu/significant_motion on first motion after stillness
       imu:
         enabled: true
         rate: 100   # max 400 Hz (anything above 100Hz depends on your hardware)
