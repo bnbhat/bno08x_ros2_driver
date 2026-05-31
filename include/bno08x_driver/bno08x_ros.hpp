@@ -45,10 +45,12 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr mag_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr game_rv_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr geo_rv_publisher_;
     rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_publisher_;
     sensor_msgs::msg::Imu imu_msg_;
     sensor_msgs::msg::MagneticField mag_msg_;
     sensor_msgs::msg::Imu game_rv_msg_;
+    sensor_msgs::msg::Imu geo_rv_msg_;
     uint8_t imu_received_flag_;
 
     // ROS Timers
@@ -77,6 +79,8 @@ private:
     int imu_rate_;
     bool publish_game_rv_;
     int game_rv_rate_;
+    bool publish_geo_rv_;
+    int geo_rv_rate_;
 
     bool publish_orientation_;
     bool publish_acceleration_;

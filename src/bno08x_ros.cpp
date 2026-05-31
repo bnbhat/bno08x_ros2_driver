@@ -47,12 +47,21 @@ BNO08xROS::BNO08xROS()
         RCLCPP_INFO(this->get_logger(), "Game Rotation Vector Rate: %d", game_rv_rate_);
     }
 
+    if (publish_geo_rv_) {
+        geo_rv_msg_.angular_velocity_covariance[0] = -1;
+        geo_rv_msg_.linear_acceleration_covariance[0] = -1;
+        geo_rv_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/geomagnetic", 10);
+        RCLCPP_INFO(this->get_logger(), "Geomagnetic Rotation Vector Publisher created");
+        RCLCPP_INFO(this->get_logger(), "Geomagnetic Rotation Vector Rate: %d", geo_rv_rate_);
+    }
+
     // Poll at the fastest rate of all enabled sensor reports.
     this->imu_received_flag_ = 0;
     int poll_rate_hz = 0;
     if (publish_imu_)            poll_rate_hz = std::max(poll_rate_hz, imu_rate_);
     if (publish_magnetic_field_) poll_rate_hz = std::max(poll_rate_hz, magnetic_field_rate_);
     if (publish_game_rv_)        poll_rate_hz = std::max(poll_rate_hz, game_rv_rate_);
+    if (publish_geo_rv_)         poll_rate_hz = std::max(poll_rate_hz, geo_rv_rate_);
     this->poll_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(1000 / poll_rate_hz),
         std::bind(&BNO08xROS::poll_timer_callback, this)
@@ -173,6 +182,8 @@ void BNO08xROS::init_parameters() {
     this->declare_parameter<bool>("publish.imu.linear_acceleration_compensated", true);
     this->declare_parameter<bool>("publish.game_rotation_vector.enabled", false);
     this->declare_parameter<int>("publish.game_rotation_vector.rate", 100);
+    this->declare_parameter<bool>("publish.geomagnetic_rotation_vector.enabled", false);
+    this->declare_parameter<int>("publish.geomagnetic_rotation_vector.rate", 100);
     this->declare_parameter<std::vector<double>>("publish.imu.orientation_covariance", this->default_orientation_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.gyrometer_covariance", this->default_gyrometer_covariance_);
     this->declare_parameter<std::vector<double>>("publish.imu.linear_covariance", this->default_linear_covariance_);
@@ -199,6 +210,8 @@ void BNO08xROS::init_parameters() {
     this->get_parameter("calibration.auto_save", auto_save_dcd_);
     this->get_parameter("publish.game_rotation_vector.enabled", publish_game_rv_);
     this->get_parameter("publish.game_rotation_vector.rate", game_rv_rate_);
+    this->get_parameter("publish.geomagnetic_rotation_vector.enabled", publish_geo_rv_);
+    this->get_parameter("publish.geomagnetic_rotation_vector.rate", geo_rv_rate_);
 
     this->get_parameter("publish.imu.orientation_covariance", orientation_covariance_);
     if (orientation_covariance_.size() != 9) {
@@ -278,7 +291,13 @@ void BNO08xROS::init_sensor() {
             RCLCPP_ERROR(this->get_logger(), "Failed to enable game rotation vector sensor");
         }
     }
-    if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_)) {
+    if (publish_geo_rv_) {
+        if(!this->bno08x_->enable_report(SH2_GEOMAGNETIC_ROTATION_VECTOR,
+                                         1000000/this->geo_rv_rate_)){             // Hz to us
+            RCLCPP_ERROR(this->get_logger(), "Failed to enable geomagnetic rotation vector sensor");
+        }
+    }
+    if (!(publish_imu_ || publish_magnetic_field_ || publish_game_rv_ || publish_geo_rv_)) {
         RCLCPP_ERROR(this->get_logger(), "No sensor reports enabled! Exiting...");
         throw std::runtime_error("No sensor reports enabled");
     }
@@ -364,6 +383,23 @@ void BNO08xROS::sensor_callback(void *cookie, sh2_SensorValue_t *sensor_value) {
 			gyro_accuracy_ = sensor_value->status & SH2_STATUS_ACCURACY_MASK;
 			imu_received_flag_ |= GYROSCOPE_RECEIVED;
 			break;
+		case SH2_GEOMAGNETIC_ROTATION_VECTOR: {
+			if (!publish_geo_rv_) break;
+			float acc = sensor_value->un.geoMagRotationVector.accuracy;
+			double ov = (acc > 0.0f) ? static_cast<double>(acc) * acc
+			                         : accuracy_to_variance(SH2_ACCURACY_UNRELIABLE);
+			geo_rv_msg_.orientation.x = sensor_value->un.geoMagRotationVector.i;
+			geo_rv_msg_.orientation.y = sensor_value->un.geoMagRotationVector.j;
+			geo_rv_msg_.orientation.z = sensor_value->un.geoMagRotationVector.k;
+			geo_rv_msg_.orientation.w = sensor_value->un.geoMagRotationVector.real;
+			geo_rv_msg_.orientation_covariance[0] = ov;
+			geo_rv_msg_.orientation_covariance[4] = ov;
+			geo_rv_msg_.orientation_covariance[8] = ov;
+			geo_rv_msg_.header.frame_id = frame_id_;
+			geo_rv_msg_.header.stamp = this->get_clock()->now();
+			geo_rv_publisher_->publish(geo_rv_msg_);
+			break;
+		}
 		case SH2_GAME_ROTATION_VECTOR: {
 			if (!publish_game_rv_) break;
 			double ov = accuracy_to_variance(sensor_value->status & SH2_STATUS_ACCURACY_MASK);
